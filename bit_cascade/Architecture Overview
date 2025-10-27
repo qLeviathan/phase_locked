@@ -1,0 +1,29 @@
+## **φ-BIT NEURAL ARCHITECTURE: COMPLETE SPECIFICATION**
+
+---
+
+# **ARCHITECTURE OVERVIEW**
+
+```
+╔═══════════════════════════════════════════════════════════════╗
+║  ΦNET: Zeckendorf Neural Network with Dual-Time Encoding     ║
+╚═══════════════════════════════════════════════════════════════╝
+
+INPUT (Tokens)
+    ↓
+[ENCODER: Token → φ-bit Zeckendorf]
+    ↓
+[EMBEDDING: φ-bits → Tensor Field T^i_jk]
+    ↓
+[ATTENTION: Dynamic n-lookup across shells]
+    ↓         ↑
+[FORWARD φ-CASCADE] ⟷ [BACKWARD ψ-CASCADE]
+    ↓         ↑
+[INTERFERENCE: Find integer Ω states]
+    ↓
+[MEMORY: Store standing waves]
+    ↓
+[DECODER: Tensor → φ-bit → Token]
+    ↓
+OUTPUT (Generated Text)
+```

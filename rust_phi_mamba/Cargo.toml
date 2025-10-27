@@ -1,0 +1,48 @@
+[workspace]
+members = [
+    "crates/phi-core",
+    "crates/phi-wasm",
+    "crates/phi-tauri",
+]
+resolver = "2"
+
+[[example]]
+name = "zordic_demo"
+path = "examples/zordic_demo.rs"
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Marc Castillo"]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/yourusername/phi-mamba"
+
+[workspace.dependencies]
+# Core dependencies
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+anyhow = "1.0"
+
+# Math and numerics
+num-traits = "0.2"
+num-integer = "0.1"
+nalgebra = "0.33"
+
+# Async runtime
+tokio = { version = "1.38", features = ["full"] }
+futures = "0.3"
+
+# WASM dependencies
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = "0.3"
+js-sys = "0.3"
+
+# Tauri dependencies
+tauri = { version = "2.0", features = [] }
+tauri-build = "2.0"
+
+# Testing
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.5"

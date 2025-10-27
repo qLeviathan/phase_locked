@@ -1,0 +1,25 @@
+=== Tensor Operations Analysis ===
+
+Matrix Multiplication:
+  64x64:
+    Integer: 60.26ms
+    Float32: 0.06ms
+    Potential speedup with ASIC: 10x
+
+  128x128:
+    Integer: 416.63ms
+    Float32: 1.30ms
+    Potential speedup with ASIC: 10x
+
+  256x256:
+    Integer: 3219.52ms
+    Float32: 8.75ms
+    Potential speedup with ASIC: 10x
+
+  512x512:
+    Integer: 26591.53ms
+    Float32: 33.41ms
+    Potential speedup with ASIC: 10x
+
+
+Attention Mechanism:
