@@ -16,3 +16,6 @@ nalgebra = { workspace = true }
 [dev-dependencies]
 criterion = { workspace = true }
 proptest = { workspace = true }
+
+[[example]]
+name = "zordic_demo"

@@ -6,9 +6,7 @@ members = [
 ]
 resolver = "2"
 
-[[example]]
-name = "zordic_demo"
-path = "examples/zordic_demo.rs"
+
 
 [workspace.package]
 version = "0.1.0"
