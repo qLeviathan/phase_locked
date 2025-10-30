@@ -1,0 +1,57 @@
+[package]
+name = "phi-mamba-desktop"
+version = "0.1.0"
+description = "Phi-Mamba Desktop - Low-Latency Trade Signal Generator"
+authors = ["Phase Locked Team"]
+edition = "2021"
+
+[lib]
+name = "phi_mamba_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# Tauri
+tauri = { version = "2", features = ["protocol-asset"] }
+tauri-plugin-opener = "2"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Phi-Mamba CORDIC Core (local dependency)
+phi-mamba-signals = { path = "../../phi-mamba-signals" }
+
+# Async runtime (latency-optimized)
+tokio = { version = "1", features = ["full", "tracing"] }
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+futures-util = "0.3"
+
+# Lock-free data structures
+crossbeam = { version = "0.8", features = ["std"] }
+parking_lot = "0.12"
+
+# Fixed-point arithmetic
+fixed = "1.24"
+
+# Performance monitoring
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Time utilities
+chrono = "0.4"
+
+# Random number generation (for simulated feed)
+rand = "0.8"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 1  # Some optimization even in dev for latency testing
+
