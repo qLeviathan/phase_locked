@@ -1,0 +1,69 @@
+[package]
+name = "tamagotchi-trader"
+version = "0.1.0"
+edition = "2021"
+authors = ["Leviathan AI <team@leviathan.ai>"]
+description = "Mobile AI agent for options trading using dual Zeckendorf lattice"
+license = "MIT"
+repository = "https://github.com/leviathan-ai/tamagotchi-trader"
+
+[lib]
+name = "tamagotchi_trader"
+crate-type = ["cdylib", "rlib", "staticlib"]
+
+[dependencies]
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bincode = "1.3"
+
+# Cryptography
+sha2 = "0.10"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Collections
+im = "15.1"  # Persistent data structures
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Async runtime (optional, for background tasks)
+tokio = { version = "1", optional = true, features = ["rt", "sync"] }
+
+# HTTP client (for Robinhood API)
+reqwest = { version = "0.11", optional = true, features = ["json"] }
+
+# Mobile-specific
+[target.'cfg(target_os = "ios")'.dependencies]
+# iOS-specific dependencies
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = { version = "0.21", optional = true }
+# Android-specific dependencies
+
+[dev-dependencies]
+proptest = "1.0"
+criterion = "0.5"
+
+[features]
+default = []
+robinhood = ["tokio", "reqwest"]
+android = ["jni"]
+
+[[bench]]
+name = "lattice_bench"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+[profile.release-with-debug]
+inherits = "release"
+strip = false
+debug = true
