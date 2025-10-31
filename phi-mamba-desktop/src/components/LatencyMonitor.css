@@ -1,0 +1,115 @@
+.latency-monitor {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 2px solid #0f3460;
+  border-radius: 8px;
+  padding: 20px;
+  color: #e9ecef;
+  font-family: 'Monaco', 'Courier New', monospace;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.latency-monitor.budget-exceeded {
+  border-color: #dc3545;
+  animation: pulse-red 1s infinite;
+}
+
+@keyframes pulse-red {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(220, 53, 69, 1);
+  }
+}
+
+.latency-monitor h3 {
+  margin: 0 0 15px 0;
+  font-size: 18px;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.metric {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+}
+
+.metric-label {
+  font-size: 11px;
+  color: #adb5bd;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.metric-value {
+  font-size: 20px;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.metric-row:last-child {
+  border-bottom: none;
+}
+
+.budget-indicator {
+  margin-top: 15px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.budget-label {
+  font-size: 12px;
+  color: #adb5bd;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.budget-status {
+  font-size: 14px;
+  font-weight: bold;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+
+.budget-status.ok {
+  background: #28a745;
+  color: white;
+}
+
+.budget-status.exceeded {
+  background: #dc3545;
+  color: white;
+  animation: blink 0.5s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.latency-monitor.loading {
+  text-align: center;
+  padding: 40px;
+  color: #adb5bd;
+}
