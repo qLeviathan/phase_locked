@@ -1,12 +1,15 @@
 """
 Encoding utilities for Φ-Mamba
-Includes Zeckendorf decomposition and state representations
+Includes state representations and topological encoding
 """
 
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
-from math import sqrt, pi, cos, sin, log
-from .utils import PHI, PSI, fibonacci
+from math import pi
+
+# Import from centralized modules
+from .constants import PHI, PSI, TWO_PI
+from .math_core import fibonacci, zeckendorf_decomposition
 
 
 @dataclass
@@ -33,9 +36,9 @@ class TokenState:
     
     def __post_init__(self):
         # Compute derived properties
-        self.theta_token = 2 * pi * (hash(self.token) % 1000) / 1000
+        self.theta_token = TWO_PI * (hash(self.token) % 1000) / 1000
         self.theta_pos = self.position * PHI**(-self.position / 10)
-        self.theta_total = (self.theta_token + self.theta_pos) % (2 * pi)
+        self.theta_total = (self.theta_token + self.theta_pos) % TWO_PI
         
         self.energy = PHI**(-self.position)
         self.zeckendorf = zeckendorf_decomposition(self.position + 1)
@@ -61,49 +64,7 @@ class TokenState:
                 f"shells={self.active_shells})")
 
 
-def zeckendorf_decomposition(n: int) -> List[int]:
-    """
-    Decompose integer n into non-consecutive Fibonacci numbers
-    
-    This is the key to the topological representation:
-    - Each Fibonacci number represents a "hole" at that scale
-    - Non-consecutive constraint = geometric requirement
-    - Pattern emerges from φ² = φ + 1
-    
-    Args:
-        n: Integer to decompose
-        
-    Returns:
-        List of Fibonacci numbers that sum to n
-        
-    Example:
-        >>> zeckendorf_decomposition(17)
-        [13, 3, 1]  # F_7 + F_4 + F_2
-    """
-    if n == 0:
-        return []
-        
-    # Build Fibonacci sequence up to n
-    fibs = [1]  # Include F_1 = 1
-    a, b = 1, 2
-    while b <= n:
-        fibs.append(b)
-        a, b = b, a + b
-        
-    # Greedy algorithm: take largest possible
-    result = []
-    remaining = n
-    
-    i = len(fibs) - 1
-    while i >= 0 and remaining > 0:
-        if fibs[i] <= remaining:
-            result.append(fibs[i])
-            remaining -= fibs[i]
-            i -= 2  # Skip next to ensure non-consecutive
-        else:
-            i -= 1
-            
-    return result
+# zeckendorf_decomposition is now imported from math_core (see imports at top)
 
 
 def binary_from_zeckendorf(zeck: List[int], max_fib_index: int = 10) -> str:
@@ -178,9 +139,9 @@ def retrocausal_encode(tokens: List[str], vocab_size: int = 50000) -> List[Token
         past.future_constraint = phase_diff
         
         # Adjust coherence weight based on phase alignment
-        if abs(phase_diff % (2*pi)) < pi/4:  # Well aligned
+        if abs(phase_diff % TWO_PI) < pi/4:  # Well aligned
             past.coherence_weight = 1.5
-        elif abs(phase_diff % (2*pi)) > 3*pi/4:  # Poorly aligned
+        elif abs(phase_diff % TWO_PI) > 3*pi/4:  # Poorly aligned
             past.coherence_weight = 0.5
             
     return states
@@ -210,7 +171,7 @@ def pentagon_reflection(state: TokenState) -> TokenState:
     
     # Mirror the angle
     reflected.theta_token = pi - state.theta_token
-    reflected.theta_total = (reflected.theta_token + reflected.theta_pos) % (2 * pi)
+    reflected.theta_total = (reflected.theta_token + reflected.theta_pos) % TWO_PI
     
     # Scale energy down by φ
     reflected.energy = state.energy / PHI

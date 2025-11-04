@@ -10,34 +10,9 @@ import networkx as nx
 from mpl_toolkits.mplot3d import Axes3D
 import seaborn as sns
 
-# Golden ratio
-PHI = (1 + np.sqrt(5)) / 2
-PSI = -1/PHI
-
-def fibonacci(n):
-    """Generate Fibonacci number"""
-    if n <= 1:
-        return n
-    return int((PHI**n - PSI**n) / np.sqrt(5))
-
-def zeckendorf_decomposition(n):
-    """Decompose n into non-adjacent Fibonacci numbers"""
-    if n == 0:
-        return []
-    fibs = [1, 2]
-    while fibs[-1] < n:
-        fibs.append(fibs[-1] + fibs[-2])
-    
-    result = []
-    i = len(fibs) - 1
-    while i >= 0 and n > 0:
-        if fibs[i] <= n:
-            result.append(fibs[i])
-            n -= fibs[i]
-            i -= 2  # Skip adjacent
-        else:
-            i -= 1
-    return result
+# Import from phi_mamba centralized modules
+from phi_mamba.constants import PHI, PSI
+from phi_mamba.math_core import fibonacci, zeckendorf_decomposition
 
 def create_utility_surface_plot():
     """Visualize the utility surface evolution"""

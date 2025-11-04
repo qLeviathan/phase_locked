@@ -18,9 +18,11 @@ from typing import List, Tuple, Dict, Optional
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-# Golden ratio constants
-PHI = (1 + np.sqrt(5)) / 2
-PSI = -1 / PHI
+# Import from phi_mamba centralized modules
+from phi_mamba.constants import PHI, PSI
+from phi_mamba.math_core import FibonacciCache
+
+# Fibonacci ratio for integer approximation
 FIB_RATIO = (377, 610)  # F_14/F_15 for integer 1/φ
 
 
@@ -28,56 +30,28 @@ class TensorSeries:
     """
     Master class unifying all φ-Mamba concepts into tensor operations
     """
-    
+
     def __init__(self, vocab_size: int = 1000, max_seq_len: int = 512):
         self.vocab_size = vocab_size
         self.max_seq_len = max_seq_len
-        self._fib_cache = {}
-        self._zeck_cache = {}
-        
+
+        # Use centralized FibonacciCache instead of custom caching
+        self._cache = FibonacciCache(max_n=max_seq_len)
+
         # Initialize tensor ranks
         self.rank0 = None  # Scalar (energy)
         self.rank1 = None  # Vector (token embeddings)
         self.rank2 = None  # Matrix (attention/coupling)
         self.rank3 = None  # 3-tensor (temporal evolution)
         self.rank4 = None  # 4-tensor (retrocausal constraints)
-        
+
     def fibonacci(self, n: int) -> int:
-        """Cached Fibonacci computation"""
-        if n in self._fib_cache:
-            return self._fib_cache[n]
-        if n <= 1:
-            return n
-        a, b = 0, 1
-        for _ in range(n):
-            a, b = b, a + b
-        self._fib_cache[n] = a
-        return a
-    
+        """Cached Fibonacci computation using centralized cache"""
+        return self._cache.get_fibonacci(n)
+
     def zeckendorf_decomposition(self, n: int) -> List[int]:
-        """Decompose into non-adjacent Fibonacci numbers"""
-        if n in self._zeck_cache:
-            return self._zeck_cache[n]
-        
-        if n == 0:
-            return []
-        
-        fibs = [1, 2]
-        while fibs[-1] < n:
-            fibs.append(fibs[-1] + fibs[-2])
-        
-        result = []
-        i = len(fibs) - 1
-        while i >= 0 and n > 0:
-            if fibs[i] <= n:
-                result.append(fibs[i])
-                n -= fibs[i]
-                i -= 2  # Skip adjacent
-            else:
-                i -= 1
-                
-        self._zeck_cache[sum(result)] = result
-        return result
+        """Decompose into non-adjacent Fibonacci numbers using centralized cache"""
+        return self._cache.get_zeckendorf(n)
     
     def initialize_tensor_series(self, input_tokens: List[int]) -> None:
         """Initialize all tensor ranks from input"""

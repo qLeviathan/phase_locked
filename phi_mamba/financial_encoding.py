@@ -16,8 +16,10 @@ from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field
 import warnings
 
-from .encoding import TokenState, zeckendorf_decomposition, calculate_betti_numbers
-from .utils import PHI, PSI, compute_berry_phase, is_phase_locked
+from .encoding import TokenState, calculate_betti_numbers
+from .math_core import zeckendorf_decomposition
+from .constants import PHI, PSI
+from .phase_dynamics import compute_berry_phase, is_phase_locked
 from .financial_data import (
     OHLCVBar, TickerData, MarketField, Timeframe,
     EconomicIndicator, calculate_technical_indicators
@@ -25,38 +27,27 @@ from .financial_data import (
 
 
 @dataclass
-class FinancialTokenState:
+class FinancialTokenState(TokenState):
     """
-    TokenState for financial data
-    Similar to TokenState but with financial-specific attributes
+    TokenState extended with financial-specific attributes.
+
+    Inherits from TokenState:
+        - token, index, position, vocab_size
+        - theta_token, theta_pos, theta_total
+        - energy, zeckendorf
+        - future_constraint, coherence_weight
+        - r, active_shells (properties)
+
+    Adds financial fields:
+        - price, volume, ticker, timeframe
+        - price_change_pct, technical_indicators
     """
-    token: str
-    index: int
-    position: int
-    vocab_size: int
-    theta_token: float
-    theta_pos: float
-    theta_total: float
-    energy: float
-    zeckendorf: List[int]
-    future_constraint: Optional[float] = None
-    coherence_weight: float = 1.0
     price: Optional[float] = None
     volume: Optional[float] = None
     ticker: Optional[str] = None
     timeframe: Optional[Timeframe] = None
     price_change_pct: Optional[float] = None
     technical_indicators: Dict[str, float] = field(default_factory=dict)
-
-    @property
-    def r(self) -> float:
-        """Radial amplitude in cylinder encoding"""
-        return PHI ** len(self.zeckendorf)
-
-    @property
-    def active_shells(self) -> List[int]:
-        """Which Fibonacci shells are active"""
-        return self.zeckendorf
 
 
 class FinancialPhiEncoder:
