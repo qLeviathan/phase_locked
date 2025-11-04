@@ -1,0 +1,309 @@
+DETAILED CODE REDUNDANCY EXAMPLES
+==================================
+
+REDUNDANCY #1: FIBONACCI IMPLEMENTATION
+========================================
+
+VERSION 1 - phi_mamba/utils.py (lines 20-35)
+---------------------------------------------
+def fibonacci(n: int) -> int:
+    """Compute nth Fibonacci number using Binet formula"""
+    if n < 0:
+        return 0
+    if n == 0:
+        return 0
+    if n == 1:
+        return 1
+    return int(round((PHI**n - PSI**n) / SQRT_5))
+
+VERSION 2 - utility_transport_visualization.py (lines 17-21)
+---------------------------------------------
+def fibonacci(n):
+    """Generate Fibonacci number"""
+    if n <= 1:
+        return n
+    return int((PHI**n - PSI**n) / np.sqrt(5))
+
+VERSION 3 - TENSOR_SERIES.py (lines 45-55)
+---------------------------------------------
+def fibonacci(self, n: int) -> int:
+    """Cached Fibonacci computation"""
+    if n in self._fib_cache:
+        return self._fib_cache[n]
+    if n <= 1:
+        return n
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    self._fib_cache[n] = a
+    return a
+
+VERSION 4 - zordic_desktop/src/zordic_core.py (lines 47-52)
+---------------------------------------------
+def _generate_fibonacci(self, n):
+    """Generate Fibonacci sequence"""
+    fib = [0, 1]
+    for i in range(2, n):
+        fib.append(fib[-1] + fib[-2])
+    return fib
+
+IMPACT: 4 different implementations with different optimization strategies
+SOLUTION: Create phi_mamba/fibonacci.py with cached, optimal version
+
+
+REDUNDANCY #2: ZECKENDORF DECOMPOSITION
+=========================================
+
+VERSION 1 - phi_mamba/encoding.py (lines 64-106)
+---------------------------------------------
+def zeckendorf_decomposition(n: int) -> List[int]:
+    """Decompose integer n into non-consecutive Fibonacci numbers"""
+    if n == 0:
+        return []
+    
+    fibs = [1]
+    a, b = 1, 2
+    while b <= n:
+        fibs.append(b)
+        a, b = b, a + b
+    
+    result = []
+    remaining = n
+    i = len(fibs) - 1
+    while i >= 0 and remaining > 0:
+        if fibs[i] <= remaining:
+            result.append(fibs[i])
+            remaining -= fibs[i]
+            i -= 2
+        else:
+            i -= 1
+    return result
+
+VERSION 2 - utility_transport_visualization.py (lines 23-40)
+---------------------------------------------
+def zeckendorf_decomposition(n):
+    """Decompose n into non-adjacent Fibonacci numbers"""
+    if n == 0:
+        return []
+    fibs = [1, 2]
+    while fibs[-1] < n:
+        fibs.append(fibs[-1] + fibs[-2])
+    
+    result = []
+    i = len(fibs) - 1
+    while i >= 0 and n > 0:
+        if fibs[i] <= n:
+            result.append(fibs[i])
+            n -= fibs[i]
+            i -= 2
+        else:
+            i -= 1
+    return result
+
+VERSION 3 - TENSOR_SERIES.py (lines 57-80)
+---------------------------------------------
+def zeckendorf_decomposition(self, n: int) -> List[int]:
+    """Decompose into non-adjacent Fibonacci numbers"""
+    if n in self._zeck_cache:
+        return self._zeck_cache[n]
+    
+    if n == 0:
+        return []
+    
+    fibs = [1, 2]
+    while fibs[-1] < n:
+        fibs.append(fibs[-1] + fibs[-2])
+    
+    result = []
+    i = len(fibs) - 1
+    while i >= 0 and n > 0:
+        if fibs[i] <= n:
+            result.append(fibs[i])
+            n -= fibs[i]
+            i -= 2
+        else:
+            i -= 1
+    
+    self._zeck_cache[sum(result)] = result
+    return result
+
+VERSION 4 - zordic_desktop/src/zordic_core.py (lines 61-79)
+---------------------------------------------
+def zeckendorf_decompose(self, n):
+    """Decompose integer into unique Fibonacci sum"""
+    if n == 0:
+        return []
+    
+    result = []
+    i = len(self.F) - 1
+    
+    while i >= 2 and n > 0:
+        if self.F[i] <= n:
+            result.append(i)
+            n -= self.F[i]
+        i -= 1
+    
+    return sorted(result)
+
+IMPACT: 4 similar implementations (slightly different index handling)
+SOLUTION: Single optimized version with optional caching
+
+
+REDUNDANCY #3: GOLDEN RATIO CONSTANTS
+======================================
+
+FOUND IN 10+ FILES. Examples:
+
+phi_mamba/utils.py (lines 11-17)
+---------------------------------
+PHI = (1 + sqrt(5)) / 2
+PSI = -1 / PHI
+LN_PHI = log(PHI)
+SQRT_5 = sqrt(5)
+UNITY = PHI**2 - PHI
+
+utility_transport_visualization.py (lines 14-15)
+---------------------------------
+PHI = (1 + np.sqrt(5)) / 2
+PSI = -1/PHI
+
+TENSOR_SERIES.py (lines 22-24)
+---------------------------------
+PHI = (1 + np.sqrt(5)) / 2
+PSI = -1 / PHI
+FIB_RATIO = (377, 610)
+
+zordic_desktop/src/zordic_core.py (lines 15-17)
+---------------------------------
+PHI = (1 + np.sqrt(5)) / 2
+PSI = (1 - np.sqrt(5)) / 2
+SQRT5 = np.sqrt(5)
+
+economic_demo.py (IMPORTS CORRECTLY from phi_mamba.utils)
+ALSO DEFINES: self.phi = PHI
+
+IMPACT: Constants redefined 10+ times across codebase
+ISSUES:
+- PHI vs np.sqrt vs math.sqrt inconsistency
+- PSI defined two different ways (using division vs formula)
+- No single source of truth
+- Type inconsistencies (float vs Decimal in zordic_desktop)
+
+SOLUTION: Create phi_mamba/constants.py with all constants
+
+
+REDUNDANCY #4: TOKENSTATE CLASSES
+===================================
+
+VERSION 1 - phi_mamba/encoding.py (lines 12-62)
+---------------------------------------------
+@dataclass
+class TokenState:
+    token: str
+    index: int
+    position: int
+    vocab_size: int
+    
+    def __post_init__(self):
+        self.theta_token = 2 * pi * (hash(self.token) % 1000) / 1000
+        self.theta_pos = self.position * PHI**(-self.position / 10)
+        self.theta_total = (self.theta_token + self.theta_pos) % (2 * pi)
+        self.energy = PHI**(-self.position)
+        self.zeckendorf = zeckendorf_decomposition(self.position + 1)
+        self.future_constraint: Optional[float] = None
+        self.coherence_weight: float = 1.0
+
+VERSION 2 - phi_mamba/financial_encoding.py (lines 27-59)
+---------------------------------------------
+@dataclass
+class FinancialTokenState:
+    token: str
+    index: int
+    position: int
+    vocab_size: int
+    theta_token: float
+    theta_pos: float
+    theta_total: float
+    energy: float
+    zeckendorf: List[int]
+    future_constraint: Optional[float] = None
+    coherence_weight: float = 1.0
+    price: Optional[float] = None
+    volume: Optional[float] = None
+    ticker: Optional[str] = None
+    timeframe: Optional[Timeframe] = None
+    price_change_pct: Optional[float] = None
+    technical_indicators: Dict[str, float] = field(default_factory=dict)
+
+ISSUE: Complete duplication of base attributes
+      Then adds financial-specific fields
+
+SOLUTION: Either:
+Option A: Make FinancialTokenState a subclass of TokenState
+Option B: Composition pattern (TokenState + FinancialAttributes wrapper)
+
+
+REDUNDANCY #5: VALIDATION/TEST CODE
+====================================
+
+game_theory_validation.py (test_backward_induction, ~20 lines)
+----------------------------------------------------------
+# Backward induction implementation
+for i in range(len(states) - 2, -1, -1):
+    current_state = states[i]
+    future_value = values[i + 1]
+    immediate_utility = current_state.energy * current_state.coherence_weight
+    discounted_future = (1/PHI) * future_value
+    values[i] = immediate_utility + discounted_future
+
+test_current_implementation.py (~20 lines)
+----------------------------------------------------------
+# Similar backward induction testing
+# Similar energy decay calculations
+# Similar Fibonacci/Zeckendorf testing
+
+SOLUTION: Create phi_mamba/validation.py with reusable test utilities
+
+
+REDUNDANCY #6: VISUALIZATION SETUP
+===================================
+
+advanced_visualizations.py (repeated pattern)
+------------------------------------------
+fig = plt.figure(figsize=(12, 8))
+ax = fig.add_subplot(111, projection='3d')
+ax.set_xlabel('X Label')
+ax.set_ylabel('Y Label')
+ax.set_zlabel('Z Label')
+plt.tight_layout()
+
+examples/visualize_topology.py (similar)
+------------------------------------------
+Same matplotlib setup repeated
+
+utility_transport_visualization.py (similar)
+------------------------------------------
+Same 3D plotting setup repeated
+
+SOLUTION: Create phi_mamba/visualization.py with:
+- Standard figure setup functions
+- Common plot styling
+- 3D coordinate conversion utilities
+
+
+SUMMARY OF CODE DUPLICATION BY TYPE
+====================================
+
+Type                    Files Affected    Lines Duplicated    Severity
+-------                 ---------------   ----------------    --------
+Fibonacci               6 files           ~100 lines          CRITICAL
+Zeckendorf             4 files            ~80 lines           CRITICAL
+Constants              10+ files          ~50 lines each       CRITICAL
+TokenState Classes     2 files            ~50 lines           HIGH
+Validation Logic       3 files            ~100 lines          HIGH
+Visualization Code     4+ files           ~200 lines          MEDIUM
+Phase Calculations     3 files            ~80 lines           MEDIUM
+
+TOTAL ESTIMATED DUPLICATE CODE: 800-1000 lines (10% of codebase)
+CONSOLIDATION POTENTIAL: Could reduce to ~200-300 lines with proper modularization
+
