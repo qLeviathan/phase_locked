@@ -1,0 +1,19 @@
+[package]
+name = "phi_core"
+version = "0.1.0"
+edition = "2021"
+authors = ["ZORDIC <zordic@phi.space>"]
+description = "Latent n Manifold - Logarithmic φ-space computation with minimal resistance"
+
+[lib]
+name = "phi_core"
+path = "src/lib.rs"
+
+[dependencies]
+# No external dependencies - pure Fibonacci mathematics
+# Everything computes in O(1) time via precomputed tables
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
