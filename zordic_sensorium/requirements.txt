@@ -1,0 +1,4 @@
+# ZORDIC Sensorium Requirements
+
+pygame>=2.5.0
+numpy>=1.21.0
