@@ -5,7 +5,7 @@
 use fixed::types::I32F32;
 use serde::{Deserialize, Serialize};
 
-use super::{Cordic, CORDIC_GAIN_INV};
+use super::Cordic;
 
 /// 2D point in fixed-point coordinates
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -94,7 +94,7 @@ pub fn change_basis(cordic: &Cordic, point: Point2D, basis_angle: I32F32) -> Poi
 }
 
 /// Interpolate between two angles (shortest path on circle)
-pub fn angle_interpolate(cordic: &Cordic, angle_a: I32F32, angle_b: I32F32, t: I32F32) -> I32F32 {
+pub fn angle_interpolate(_cordic: &Cordic, angle_a: I32F32, angle_b: I32F32, t: I32F32) -> I32F32 {
     // Normalize angles
     let a = super::fixed_point::normalize_angle(angle_a);
     let b = super::fixed_point::normalize_angle(angle_b);
