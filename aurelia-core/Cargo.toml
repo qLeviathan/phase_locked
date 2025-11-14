@@ -1,0 +1,54 @@
+[package]
+name = "aurelia-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["Phase Locked Team"]
+description = "Aurelia - Conscious Trading Agent with Personality & Memory"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Phi-Mamba CORDIC core (local dependency)
+phi-mamba-signals = { path = "../phi-mamba-signals" }
+
+# Serialization & persistence
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bincode = "1.3"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Math & statistics
+num-traits = "0.2"
+fixed = "1.24"
+
+# Cryptography (for consciousness hash)
+sha2 = "0.10"
+
+# Async runtime
+tokio = { version = "1", features = ["full"], optional = true }
+futures = { version = "0.3", optional = true }
+
+# Logging
+tracing = "0.1"
+
+# WASM support
+wasm-bindgen = { version = "0.2", optional = true }
+js-sys = { version = "0.3", optional = true }
+web-sys = { version = "0.3", features = ["WebSocket"], optional = true }
+
+[dev-dependencies]
+tokio-test = "0.4"
+
+[features]
+default = []
+wasm = ["wasm-bindgen", "js-sys", "web-sys"]
+async = ["tokio", "futures"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

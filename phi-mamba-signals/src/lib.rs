@@ -92,7 +92,7 @@ pub fn verify_cordic_accuracy() -> f64 {
         std::f64::consts::PI,          // 180°
     ];
 
-    let mut max_error = 0.0;
+    let mut max_error: f64 = 0.0;
 
     for &angle_f64 in &test_angles {
         let angle = I32F32::from_num(angle_f64);

@@ -72,11 +72,11 @@ pub fn fibonacci_sequence(max_value: u64) -> Vec<u64> {
         return vec![0, 1];
     }
 
-    let mut fibs = vec![1, 2];
+    let mut fibs: Vec<u64> = vec![1, 2];
 
     loop {
         let len = fibs.len();
-        let next = fibs[len - 1].saturating_add(fibs[len - 2]);
+        let next: u64 = fibs[len - 1].saturating_add(fibs[len - 2]);
 
         if next > max_value {
             break;

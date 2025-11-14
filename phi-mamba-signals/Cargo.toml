@@ -15,7 +15,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 # Fixed-point arithmetic for CORDIC
-fixed = "1.24"
+fixed = { version = "1.24", features = ["serde"] }
 num-traits = "0.2"
 
 # Data parallelism

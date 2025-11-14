@@ -141,7 +141,7 @@ impl FinancialEncoder {
 
 /// Compute field coherence between two financial states
 pub fn field_coherence(a: &FinancialState, b: &FinancialState) -> f64 {
-    let cordic = Cordic::default();
+    let _cordic = Cordic::default();
 
     // Angle difference
     let angle_diff = (a.price_angle - b.price_angle).abs();
