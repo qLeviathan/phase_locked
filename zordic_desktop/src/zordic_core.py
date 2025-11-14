@@ -11,14 +11,9 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import List, Tuple, Dict, Optional
 
-# Golden ratio constants
-PHI = (1 + np.sqrt(5)) / 2  # φ = 1.618...
-PSI = (1 - np.sqrt(5)) / 2  # ψ = -0.618...
-SQRT5 = np.sqrt(5)
-
-# Fibonacci and Lucas sequences (precomputed for speed)
-FIB = [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181]
-LUCAS = [2, 1, 3, 4, 7, 11, 18, 29, 47, 76, 123, 199, 322, 521, 843, 1364, 2207, 3571, 5778, 9349]
+# Import from phi_mamba centralized modules
+from phi_mamba.constants import PHI, PSI, SQRT_5 as SQRT5
+from phi_mamba.math_core import fibonacci, lucas, zeckendorf_to_indices, fibonacci_sequence
 
 
 @dataclass
@@ -38,25 +33,12 @@ class ZordicNode:
 
 
 class FibonacciCore:
-    """Core Fibonacci/Lucas number generation"""
+    """Core Fibonacci/Lucas number generation using phi_mamba library"""
 
     def __init__(self, max_n=50):
-        self.F = self._generate_fibonacci(max_n)
-        self.L = self._generate_lucas(max_n)
-
-    def _generate_fibonacci(self, n):
-        """Generate Fibonacci sequence"""
-        fib = [0, 1]
-        for i in range(2, n):
-            fib.append(fib[-1] + fib[-2])
-        return fib
-
-    def _generate_lucas(self, n):
-        """Generate Lucas sequence"""
-        lucas = [2, 1]
-        for i in range(2, n):
-            lucas.append(lucas[-1] + lucas[-2])
-        return lucas
+        # Use phi_mamba's centralized functions
+        self.F = fibonacci_sequence(max_n - 1, include_zero=True)
+        self.L = [lucas(i) for i in range(max_n)]
 
     def zeckendorf_decompose(self, n):
         """
@@ -64,20 +46,10 @@ class FibonacciCore:
 
         Property: No consecutive Fibonacci numbers
         Example: 17 = F₇ + F₄ + F₂ = 13 + 3 + 1 → [7, 4, 2]
+
+        Returns indices of Fibonacci numbers (not values)
         """
-        if n == 0:
-            return []
-
-        result = []
-        i = len(self.F) - 1
-
-        while i >= 2 and n > 0:
-            if self.F[i] <= n:
-                result.append(i)
-                n -= self.F[i]
-            i -= 1
-
-        return sorted(result)
+        return zeckendorf_to_indices(n)
 
     def to_z_binary(self, shells):
         """Convert shell indices to Z-binary representation"""
