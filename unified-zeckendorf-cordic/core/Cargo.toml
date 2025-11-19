@@ -1,0 +1,19 @@
+[package]
+name = "unified-zeckendorf-cordic"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "unified_zeckendorf_cordic"
+path = "src/lib.rs"
+
+[dependencies]
+fixed = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
