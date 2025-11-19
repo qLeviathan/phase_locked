@@ -1,0 +1,15 @@
+[package]
+name = "zeckendorf_cordic_py"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+name = "zeckendorf_cordic"
+crate-type = ["cdylib"]
+
+[dependencies]
+unified-zeckendorf-cordic = { path = "../core" }
+pyo3 = { workspace = true }
+serde_json = { workspace = true }
