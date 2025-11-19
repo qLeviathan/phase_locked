@@ -1,0 +1,69 @@
+Warning: Rust bindings not available, using pure Python fallback
+
+🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀
+ZECKENDORF-CORDIC BENCHMARK SUITE
+Integer-Only Phi-Mamba Transformer
+🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀
+
+============================================================
+BENCHMARK 1: Integer vs Floating Point Operations
+============================================================
+
+Testing integer-only operations...
+Testing floating-point operations...
+
+✓ Integer operations: 0.0472s
+✓ Float operations: 0.0274s
+✓ Integer is 0.58x faster
+
+============================================================
+BENCHMARK 2: Zeckendorf Encoding Speed
+============================================================
+
+Encoding 100 prompts...
+✓ Encoded 100 prompts in 0.0003s
+✓ Speed: 356052.97 prompts/sec
+✓ Using Python fallback (Rust would be ~10x faster)
+
+============================================================
+BENCHMARK 3: Text Generation Speed
+============================================================
+
+Testing Phi-Mamba (Integer-Only)...
+✓ Average time: 0.0001s
+✓ Average tokens: 13.6
+✓ Speed: 196562.83 tokens/sec
+
+============================================================
+BENCHMARK 4: Comparison with Ollama Models
+============================================================
+
+Testing Ollama: llama3...
+✗ Error testing llama3: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7ead1b079450>: Failed to establish a new connection: [Errno 111] Connection refused'))
+   Make sure Ollama is running: ollama serve
+
+Testing Ollama: mistral...
+✗ Error testing mistral: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7ead1b1bde50>: Failed to establish a new connection: [Errno 111] Connection refused'))
+   Make sure Ollama is running: ollama serve
+
+============================================================
+BENCHMARK 5: Memory Usage
+============================================================
+
+✓ Initial memory: 108.13 MB
+✓ After loading model: 108.56 MB
+✓ After generation: 108.56 MB
+✓ Model size: 0.43 MB
+
+============================================================
+BENCHMARK SUMMARY
+============================================================
+
+✓ Integer operations are 0.58x faster than floats
+✓ Zeckendorf encoding: 356052.97 prompts/sec
+✓ Generation speed: 196562.83 tokens/sec
+✓ Model size: 0.43 MB
+
+============================================================
+
+✓ Results saved to benchmark_results_1763587104.json
