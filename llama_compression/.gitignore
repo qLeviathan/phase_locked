@@ -1,0 +1,6 @@
+# Ablation cache files (generated artifacts)
+ablation_cache/
+*.pkl
+
+# Consciousness state (runtime data)
+consciousness.json
