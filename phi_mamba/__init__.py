@@ -38,8 +38,11 @@ from .financial_system import (
     PhiMambaFinancialSystem, create_default_system, AnalysisResults
 )
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Marc Castillo"
+
+# CLI module - can be run with: python -m phi_mamba [command]
+# See: python -m phi_mamba --help for available commands
 
 __all__ = [
     # Core
