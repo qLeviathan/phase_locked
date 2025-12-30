@@ -1,15 +1,15 @@
 // =============================================================================
-// ZECK_TOP - Top Level for Verilator Testing
+// ZECK_TOP - φ-Subscript Calculus Primitives
 // =============================================================================
-// Demonstrates the core cascade primitive on Raspberry Pi
+// Complete system for Verilator testing on Raspberry Pi / Kano
 //
-// Operations:
-//   1. Encode integer → zeckbits
-//   2. Cascade normalize (the physics)
-//   3. Merge two states (superposition → cascade)
+// Primitives:
+//   1. ENCODE:   token → Σφₙᵢ (Zeckendorf decomposition)
+//   2. CASCADE:  rewrite physics (R1: merge, R2: split)
+//   3. MERGE:    A ⊕ B = Normalize(A ⊞ B)
+//   4. CONTRACT: ⟨Q, K⟩ = Σ L_{|a-b|} (Lucas attention)
 //
-// The cascade_count is the key output: it measures "work" to reach
-// canonical form, which IS the Z[φ] norm (shell metric).
+// The cascade_count IS the Z[φ] norm. Geometry determines attention.
 // =============================================================================
 
 module zeck_top #(
@@ -19,29 +19,38 @@ module zeck_top #(
     input  wire              clk,
     input  wire              rst_n,
 
-    // Encode interface
+    // Encode interface: integer → Zeckbits
     input  wire              encode_start,
     input  wire [WIDTH-1:0]  encode_value,
     output wire [N-1:0]      encode_zeck,
     output wire              encode_done,
 
-    // Raw cascade interface (for testing rewrite physics)
+    // Cascade interface: rewrite to canonical form
     input  wire              cascade_start,
     input  wire [N-1:0]      cascade_in,
     output wire [N-1:0]      cascade_out,
     output wire              cascade_done,
     output wire [7:0]        cascade_count,
 
-    // Merge interface (the true "XOR" = superposition + cascade)
+    // Merge interface: superposition + cascade
     input  wire              merge_start,
     input  wire [N-1:0]      merge_a,
     input  wire [N-1:0]      merge_b,
     output wire [N-1:0]      merge_out,
     output wire              merge_done,
-    output wire [7:0]        merge_norm   // Cascade count = norm proxy
+    output wire [7:0]        merge_norm,
+
+    // Contract interface: Lucas attention
+    input  wire              contract_start,
+    input  wire [N-1:0]      contract_q,
+    input  wire [N-1:0]      contract_k,
+    output wire [31:0]       contract_attention,
+    output wire              contract_done
 );
 
-    // Encoder instance
+    // -------------------------------------------------------------------------
+    // Encoder: token → Σφₙᵢ
+    // -------------------------------------------------------------------------
     zeck_encode #(.N(N), .WIDTH(WIDTH)) encoder (
         .clk(clk),
         .rst_n(rst_n),
@@ -51,7 +60,9 @@ module zeck_top #(
         .done(encode_done)
     );
 
-    // Cascade instance (raw rewrite engine)
+    // -------------------------------------------------------------------------
+    // Cascade: rewrite engine (R1 + R2)
+    // -------------------------------------------------------------------------
     zeck_cascade #(.N(N)) cascader (
         .clk(clk),
         .rst_n(rst_n),
@@ -62,7 +73,9 @@ module zeck_top #(
         .cascade_count(cascade_count)
     );
 
-    // Merge instance (superposition + cascade)
+    // -------------------------------------------------------------------------
+    // Merge: A ⊕ B = Normalize(A ⊞ B)
+    // -------------------------------------------------------------------------
     zeck_merge #(.N(N)) merger (
         .clk(clk),
         .rst_n(rst_n),
@@ -72,6 +85,19 @@ module zeck_top #(
         .Z(merge_out),
         .done(merge_done),
         .norm_proxy(merge_norm)
+    );
+
+    // -------------------------------------------------------------------------
+    // Contract: ⟨Q, K⟩ = Σ L_{|a-b|}
+    // -------------------------------------------------------------------------
+    phi_contract #(.N(N)) contractor (
+        .clk(clk),
+        .rst_n(rst_n),
+        .start(contract_start),
+        .Q(contract_q),
+        .K(contract_k),
+        .attention(contract_attention),
+        .done(contract_done)
     );
 
 endmodule
