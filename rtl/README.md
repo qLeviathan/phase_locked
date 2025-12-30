@@ -1,116 +1,165 @@
-# Zeckbit Cascade RTL
+# φ-Subscript Calculus RTL
 
-Pure rewrite physics in synthesizable Verilog. Target: Verilator on Raspberry Pi 3B.
+Pure rewrite physics for FPGA/Verilator. No Boolean XOR. No floating point.
 
-## Core Insight
+## Target Hardware
+- **Immediate:** Verilator on Raspberry Pi 3B / Kano
+- **Next:** iCE40 or Lattice ECP5 FPGA
 
-**This is NOT binary arithmetic.** The "bit" is Fibonacci-shell occupancy with hard constraints and rewrite physics. Binary intuition will mislead you.
-
-## The Primitives
-
-### 1. Shell Occupancy (Zeckbit)
-```
-Z[i] ∈ {0,1} = occupancy of shell i (Fibonacci index)
-```
-
-### 2. Validity Constraint
-```
-No adjacency: Z[i]=1 ⇒ Z[i+1]=0 and Z[i-1]=0
-```
-
-### 3. Rewrite Rules
-
-**R1 (Adjacency Merge):** Two adjacent shells collapse upward
-```
-Pattern: ... 1 1 ... at (i, i+1)
-Rewrite: ... 0 0 1 ... at (i, i+1, i+2)
-```
-This is: F_k + F_{k+1} = F_{k+2}
-
-**R2 (Split Overflow):** Double-occupancy splits
-```
-Pattern: 2 at i
-Rewrite: 1 at (i+1) + 1 at (i-2)
-```
-This is: 2·F_k = F_{k+1} + F_{k-2}
-
-### 4. The "XOR" Operator (It's NOT Boolean XOR)
+## The φ-Subscript Notation
 
 ```
-⊕ ≡ Superposition + Cascade
-Z = Normalize(A ⊞ B)
+φₙ ≡ φⁿ           (n ∈ ℤ)
+φₐφᵦ = φₐ₊ᵦ       (product = index sum)
+φ̄ₙ = (-1)ⁿφ₋ₙ    (conjugate)
 ```
 
-Where `⊞` is raw shell addition, and `Normalize` applies R1/R2 until stable.
-
-**Properties:**
-- Commutative: A ⊕ B = B ⊕ A
-- Deterministic
-- Canonical output
-- **NOT bitwise** (shells are coupled by Fibonacci identities)
-
-## The Key Output: Cascade Count
-
-The number of rewrite steps (cascade_count) **IS** the Z[φ] norm:
-- More cascades = more "work" to reach canonical form
-- This measures distance on the discrete hyperbola
-- Higher cascade count = closer shells = higher "attention weight"
-
+**Contraction (inner product):**
 ```
-N(a + bφ) = (a + bφ)(a + bψ) = a² + ab - b²
+⟨φₐ, φᵦ⟩ = φₐφ̄ᵦ + φ̄ₐφᵦ = L_{a-b}    (Lucas number!)
 ```
 
-The shell metric `L² - 5F² = 4(-1)ⁿ` is the same thing viewed algebraically.
+**Norm:**
+```
+‖φₙ‖² = φₙφ̄ₙ = (-1)ⁿ
+```
 
-## Modules
+## The Four Primitives
 
-| Module | Function |
-|--------|----------|
-| `zeck_cascade.v` | Rewrite engine (R1 + R2) |
-| `zeck_encode.v` | Integer → Zeckbits (greedy decomposition) |
-| `zeck_merge.v` | Superposition + Cascade (true "XOR") |
-| `zeck_top.v` | Top-level wrapper |
+| Primitive | Transformer Equiv | Implementation |
+|-----------|-------------------|----------------|
+| **ENCODE** | Embedding | token → Σφₙᵢ (Zeckendorf) |
+| **CASCADE** | FFN | R1: φₐ+φₐ₊₁=φₐ₊₂, R2: 2φₐ=φₐ₊₁+φₐ₋₂ |
+| **MERGE** | Residual | A ⊕ B = Normalize(A ⊞ B) |
+| **CONTRACT** | Attention | ⟨Q,K⟩ = Σ L_{|a-b|} |
 
-## Build & Run
+## Key Insight
+
+**Lucas numbers ARE the attention weights.**
+
+The contraction `⟨Q, K⟩ = Σᵢ Σⱼ L_{|aᵢ - bⱼ|}` falls out of the algebra.
+No learned parameters. Geometry determines attention.
+
+## Quick Start on Raspberry Pi / Kano
 
 ```bash
-# On Raspberry Pi 3B (install Verilator first)
-sudo apt install verilator
+# Clone and enter
+cd phase_locked/rtl
+
+# Install Verilator (one-time setup)
+sudo apt update && sudo apt install -y verilator build-essential
 
 # Build
 make
 
-# Run demo
+# Run tests
 make run
 
-# With waveform
-make wave
+# See benchmark
+make benchmark
 ```
 
-## Test Vectors
+## Expected Output
 
-### Cascade (R1)
-| Input | Output | Cascades |
-|-------|--------|----------|
-| `0b11` | `0b100` | 1 |
-| `0b111` | `0b1001` | 2 |
-| `0b11011` | `0b100101` | 2 |
-| `0b1111111` | `0b1000101` | 4 |
+```
+═══════════════════════════════════════════════════════════════════
+  φ-SUBSCRIPT CALCULUS - Zeckbit Cascade Tests
+  Target: Raspberry Pi / Kano (Verilator)
+═══════════════════════════════════════════════════════════════════
 
-### Valid (No Cascade)
-| Input | Output | Cascades |
-|-------|--------|----------|
-| `0b10101010` | `0b10101010` | 0 |
-| `0b10010010` | `0b10010010` | 0 |
+━━━ TEST 1: Zeckendorf Encoding ━━━
+    token → Σφₙᵢ (non-adjacent Fibonacci indices)
 
-## Why This Works for Language Models
+    1 → φ_2
+    5 → φ_5
+   17 → φ_2 + φ_4 + φ_7
 
-1. **Context = Shell Occupancy**: Each token activates certain shells
-2. **Merge = Interference**: Combining tokens creates violations
-3. **Cascade = Resolution**: Physics determines the stable state
-4. **Norm = Attention**: Cascade count measures semantic distance
+━━━ TEST 2: Cascade Normalization ━━━
+    R1: φₐ + φₐ₊₁ = φₐ₊₂ (adjacent merge)
 
-The cascade count during addition IS computing the Z[φ] norm operationally.
+  0000000011 → 0000000100 (cascades=1) φ_2 + φ_3 → φ_4
+  0000000111 → 0000001001 (cascades=2) φ_2 + φ_3 + φ_4 → φ_2 + φ_5
+
+━━━ TEST 3: Lucas Contraction (Attention) ━━━
+    ⟨Q, K⟩ = Σᵢ Σⱼ L_{|aᵢ - bⱼ|}
+
+  ⟨φ_2, φ_2⟩ = 2  (L_0 = 2)
+  ⟨φ_2, φ_3⟩ = 1  (L_1 = 1)
+  ⟨φ_2, φ_4⟩ = 3  (L_2 = 3)
+```
+
+## Rewrite Rules (The Physics)
+
+**R1 (Adjacency Merge):** Two adjacent shells collapse upward
+```
+φₐ + φₐ₊₁ = φₐ₊₂
+```
+This is F_k + F_{k+1} = F_{k+2}
+
+**R2 (Split Overflow):** Double-occupancy splits
+```
+2φₐ = φₐ₊₁ + φₐ₋₂
+```
+This is 2·F_k = F_{k+1} + F_{k-2}
+
+## Files
+
+| File | Description |
+|------|-------------|
+| `zeck_cascade.v` | Rewrite engine (R1 + R2) |
+| `zeck_encode.v` | Greedy Zeckendorf decomposition |
+| `zeck_merge.v` | Superposition + cascade |
+| `lucas_lut.v` | Lucas number ROM |
+| `phi_contract.v` | Attention via contraction |
+| `zeck_top.v` | Top-level wrapper |
+| `sim/tb_zeck.cpp` | Verilator testbench |
+| `setup_pi.sh` | Install script for Pi/Kano |
+| `benchmark.sh` | Throughput measurement |
+
+## Resource Estimate
+
+```
+Module            | LUTs  | FFs   | Notes
+------------------|-------|-------|------------------
+zeck_cascade (32) |  ~200 |  ~70  | Rewrite engine R1+R2
+zeck_encode (32)  |  ~150 | ~100  | Greedy Zeckendorf
+lucas_lut (32)    |  ~100 |    0  | ROM table
+phi_contract      |  ~150 |  ~80  | Attention accumulator
+zeck_merge        |   ~50 |  ~10  | Superposition
+------------------|-------|-------|------------------
+TOTAL             |  ~650 | ~260  | Under 1350 target
+```
+
+## Inference Path
+
+```
+1. ENCODE tokens → shell occupancy states
+2. Fold context via repeated MERGE (⊕)
+3. CASCADE to canonical form
+4. CONTRACT query against context keys
+5. Lucas sums = attention weights
+6. Nearest occupied cell = prediction
+```
+
+## What This Replaces
+
+| Transformer | φ-mechanics | Why |
+|-------------|-------------|-----|
+| Embedding table | Zeckendorf encode | Address IS content |
+| Q·K^T matmul | Lucas contraction | Integer, no divide |
+| Softmax | Native shell ordering | No normalization needed |
+| FFN layers | Cascade rewrite | Physics, not learned |
+| Position encoding | Native | Index IS position |
+
+## Lucas Table
+
+```
+L_0=2   L_1=1   L_2=3   L_3=4   L_4=7   L_5=11  L_6=18  L_7=29
+L_8=47  L_9=76  L_10=123 ...
+```
+
+Higher shell distance = smaller Lucas number = less attention.
+This IS the attention decay curve, emerging from φ·ψ = -1.
 
 ## No Floating Point
 
@@ -118,16 +167,7 @@ All operations are:
 - Integer addition (for superposition)
 - Bit manipulation (for rule detection)
 - State machine (for rewrite engine)
+- Integer LUT lookup (for Lucas)
 
-The Fibonacci ratios (e.g., 377/610 ≈ 1/φ) are used only if you need φ approximation, but the core cascade needs no such thing.
-
-## Resource Estimate (iCE40-class FPGA)
-
-| Module | LUTs | FFs |
-|--------|------|-----|
-| zeck_cascade (32-bit) | ~200 | ~70 |
-| zeck_encode (32-bit) | ~150 | ~100 |
-| zeck_merge (32-bit) | ~50 | ~10 |
-| **Total** | **~400** | **~180** |
-
-Well under the 1350 LUT target.
+The only approximation needed is if you want to convert back to decimal,
+but the cascade itself is exact integer arithmetic.
