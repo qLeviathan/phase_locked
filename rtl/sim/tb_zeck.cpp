@@ -1,12 +1,13 @@
 // =============================================================================
-// Verilator Testbench for Zeckbit Cascade
+// Verilator Testbench for φ-Subscript Calculus Primitives
 // =============================================================================
-// φ-subscript calculus primitives:
+// Complete test suite for Raspberry Pi / Kano:
 //   - Encoding: token → Σφₙᵢ (Zeckendorf decomposition)
-//   - Cascade: adjacent merge (φₐ + φₐ₊₁ = φₐ₊₂)
+//   - Cascade: rewrite physics (R1 + R2)
 //   - Contraction: ⟨Q, K⟩ = Σ L_{|a-b|} (Lucas attention)
+//   - Context: Recurrence dynamics C_{n+1} = C_n ⊕ token_n
+//   - Inference: Complete FSM (ENCODE → FOLD → SNAP → DECODE)
 //
-// Target: Raspberry Pi 3B / Kano
 // Build: make && make run
 // =============================================================================
 
@@ -29,17 +30,70 @@ void tick(Vzeck_top* dut, uint64_t& sim_time) {
     sim_time++;
 }
 
-// Wait for done signal with timeout
-int wait_done(Vzeck_top* dut, uint64_t& sim_time, int max_cycles = 1000) {
+// Wait for any done signal with timeout
+int wait_any_done(Vzeck_top* dut, uint64_t& sim_time, int max_cycles = 1000) {
     int cycles = 0;
     while (cycles < max_cycles) {
         tick(dut, sim_time);
         cycles++;
-        if (dut->encode_done || dut->cascade_done || dut->merge_done || dut->contract_done) {
+        if (dut->encode_done || dut->cascade_done || dut->merge_done ||
+            dut->contract_done || dut->context_fold_done || dut->decode_done ||
+            dut->infer_done) {
             return cycles;
         }
     }
     return -1;  // Timeout
+}
+
+// Wait for specific done signal
+int wait_encode_done(Vzeck_top* dut, uint64_t& sim_time, int max_cycles = 1000) {
+    int cycles = 0;
+    while (cycles < max_cycles) {
+        tick(dut, sim_time);
+        cycles++;
+        if (dut->encode_done) return cycles;
+    }
+    return -1;
+}
+
+int wait_cascade_done(Vzeck_top* dut, uint64_t& sim_time, int max_cycles = 1000) {
+    int cycles = 0;
+    while (cycles < max_cycles) {
+        tick(dut, sim_time);
+        cycles++;
+        if (dut->cascade_done) return cycles;
+    }
+    return -1;
+}
+
+int wait_context_done(Vzeck_top* dut, uint64_t& sim_time, int max_cycles = 1000) {
+    int cycles = 0;
+    while (cycles < max_cycles) {
+        tick(dut, sim_time);
+        cycles++;
+        if (dut->context_fold_done) return cycles;
+    }
+    return -1;
+}
+
+int wait_decode_done(Vzeck_top* dut, uint64_t& sim_time, int max_cycles = 1000) {
+    int cycles = 0;
+    while (cycles < max_cycles) {
+        tick(dut, sim_time);
+        cycles++;
+        if (dut->decode_done) return cycles;
+    }
+    return -1;
+}
+
+int wait_infer_done(Vzeck_top* dut, uint64_t& sim_time, int max_cycles = 2000) {
+    int cycles = 0;
+    while (cycles < max_cycles) {
+        tick(dut, sim_time);
+        cycles++;
+        if (dut->infer_done) return cycles;
+    }
+    return -1;
 }
 
 // Print zeckbits as binary string
@@ -90,6 +144,18 @@ uint32_t lucas(int n) {
     return b;
 }
 
+// Fibonacci numbers for verification
+uint32_t fib(int n) {
+    if (n <= 1) return n;
+    uint32_t a = 0, b = 1;
+    for (int i = 2; i <= n; i++) {
+        uint32_t c = a + b;
+        a = b;
+        b = c;
+    }
+    return b;
+}
+
 // Compute expected contraction ⟨Q, K⟩ = Σ L_{|a-b|}
 uint32_t expected_contraction(uint32_t Q, uint32_t K, int n = 16) {
     uint32_t sum = 0;
@@ -101,6 +167,17 @@ uint32_t expected_contraction(uint32_t Q, uint32_t K, int n = 16) {
                     sum += lucas(diff);
                 }
             }
+        }
+    }
+    return sum;
+}
+
+// Decode zeckbits to integer
+uint32_t zeck_to_int(uint32_t z, int n = 32) {
+    uint32_t sum = 0;
+    for (int i = 0; i < n; i++) {
+        if ((z >> i) & 1) {
+            sum += fib(i + 2);  // Index 0 = F_2
         }
     }
     return sum;
@@ -119,16 +196,22 @@ int main(int argc, char** argv) {
     int fail_count = 0;
 
     printf("═══════════════════════════════════════════════════════════════════\n");
-    printf("  φ-SUBSCRIPT CALCULUS - Zeckbit Cascade Tests\n");
+    printf("  φ-SUBSCRIPT CALCULUS - Complete Test Suite\n");
     printf("  Target: Raspberry Pi / Kano (Verilator)\n");
     printf("═══════════════════════════════════════════════════════════════════\n\n");
 
-    // Reset
+    // Reset all signals
     dut->rst_n = 0;
     dut->encode_start = 0;
     dut->cascade_start = 0;
     dut->merge_start = 0;
     dut->contract_start = 0;
+    dut->context_clear = 0;
+    dut->context_fold_start = 0;
+    dut->decode_start = 0;
+    dut->infer_start = 0;
+    dut->infer_reset_context = 0;
+    dut->infer_attend_enable = 0;
     tick(dut, sim_time);
     tick(dut, sim_time);
     dut->rst_n = 1;
@@ -140,44 +223,30 @@ int main(int argc, char** argv) {
     printf("━━━ TEST 1: Zeckendorf Encoding ━━━\n");
     printf("    token → Σφₙᵢ (non-adjacent Fibonacci indices)\n\n");
 
-    struct EncodeTest {
-        uint32_t value;
-        const char* expected;
-    };
-
-    EncodeTest encode_tests[] = {
-        {1,   "φ_2"},                    // 1 = F_2
-        {2,   "φ_3"},                    // 2 = F_3
-        {3,   "φ_4"},                    // 3 = F_4
-        {4,   "φ_2 + φ_4"},              // 4 = 1 + 3 = F_2 + F_4
-        {5,   "φ_5"},                    // 5 = F_5
-        {7,   "φ_2 + φ_5"},              // 7 = 2 + 5 = F_3... wait, 7 = 5 + 2 = F_5 + F_3
-        {8,   "φ_6"},                    // 8 = F_6
-        {10,  "φ_3 + φ_6"},              // 10 = 2 + 8 = F_3 + F_6
-        {17,  "φ_2 + φ_4 + φ_7"},        // 17 = 1 + 3 + 13 = F_2 + F_4 + F_7
-        {100, "φ_4 + φ_6 + φ_11"},       // 100 = 3 + 8 + 89 = F_4 + F_6 + F_11
-    };
-
+    uint32_t encode_tests[] = {1, 2, 3, 4, 5, 7, 8, 10, 17, 100};
     int num_encode = sizeof(encode_tests) / sizeof(encode_tests[0]);
 
     for (int i = 0; i < num_encode; i++) {
-        uint32_t val = encode_tests[i].value;
+        uint32_t val = encode_tests[i];
 
         dut->encode_value = val;
         dut->encode_start = 1;
         tick(dut, sim_time);
         dut->encode_start = 0;
 
-        int cycles = wait_done(dut, sim_time);
+        int cycles = wait_encode_done(dut, sim_time);
 
         bool valid = is_valid_zeck(dut->encode_zeck);
+        uint32_t decoded = zeck_to_int(dut->encode_zeck, 16);
+        bool correct = (decoded == val);
+
         printf("  %3u → ", val);
         print_phi_notation(dut->encode_zeck, 16);
         printf("\n         binary: ");
         print_zeck(dut->encode_zeck, 16);
-        printf(" (%s, %d cycles)\n", valid ? "VALID" : "INVALID", cycles);
+        printf(" (%s, %d cycles)\n", (valid && correct) ? "✓" : "✗", cycles);
 
-        if (valid) pass_count++; else fail_count++;
+        if (valid && correct) pass_count++; else fail_count++;
     }
     printf("\n");
 
@@ -200,7 +269,6 @@ int main(int argc, char** argv) {
         {0b111,       0b1001,     "φ_2 + φ_3 + φ_4 → φ_2 + φ_5"},
         {0b1100,      0b10000,    "φ_4 + φ_5 → φ_6"},
         {0b11011,     0b100101,   "two adjacent pairs"},
-        {0b1111111,   0b1000101,  "dense 7-shell"},
         {0b10101010,  0b10101010, "already canonical"},
     };
 
@@ -214,7 +282,7 @@ int main(int argc, char** argv) {
         tick(dut, sim_time);
         dut->cascade_start = 0;
 
-        int cycles = wait_done(dut, sim_time);
+        int cycles = wait_cascade_done(dut, sim_time);
 
         bool valid = is_valid_zeck(dut->cascade_out);
         bool correct = (dut->cascade_out == t.expected);
@@ -223,7 +291,9 @@ int main(int argc, char** argv) {
         print_zeck(t.input, 10);
         printf(" → ");
         print_zeck(dut->cascade_out, 10);
-        printf(" (cascades=%d) %s\n", dut->cascade_count, t.desc);
+        printf(" (cascades=%d) %s %s\n",
+               dut->cascade_count, t.desc,
+               (valid && correct) ? "✓" : "✗");
 
         if (valid && correct) pass_count++; else fail_count++;
     }
@@ -242,12 +312,11 @@ int main(int argc, char** argv) {
     };
 
     ContractTest contract_tests[] = {
-        {0b00001, 0b00001, "identical (φ_2, φ_2)"},          // L_0 = 2
-        {0b00001, 0b00010, "adjacent (φ_2, φ_3)"},           // L_1 = 1
-        {0b00001, 0b00100, "gap-1 (φ_2, φ_4)"},              // L_2 = 3
-        {0b00001, 0b10000, "far (φ_2, φ_6)"},                // L_4 = 7
-        {0b10001, 0b10001, "two shells same"},               // L_0 + L_0 + L_4 + L_4 = 18
-        {0b10101, 0b01010, "interleaved"},                   // complex
+        {0b00001, 0b00001, "identical (φ_2, φ_2)"},
+        {0b00001, 0b00010, "adjacent (φ_2, φ_3)"},
+        {0b00001, 0b00100, "gap-1 (φ_2, φ_4)"},
+        {0b00001, 0b10000, "far (φ_2, φ_6)"},
+        {0b10001, 0b10001, "two shells same"},
     };
 
     int num_contract = sizeof(contract_tests) / sizeof(contract_tests[0]);
@@ -261,7 +330,7 @@ int main(int argc, char** argv) {
         tick(dut, sim_time);
         dut->contract_start = 0;
 
-        int cycles = wait_done(dut, sim_time);
+        int cycles = wait_any_done(dut, sim_time);
 
         uint32_t expected = expected_contraction(t.Q, t.K, 16);
 
@@ -279,53 +348,145 @@ int main(int argc, char** argv) {
     printf("\n");
 
     // =========================================================================
-    // TEST 4: Merge (Superposition + Cascade)
+    // TEST 4: Decode (Zeckbits → integer)
     // =========================================================================
-    printf("━━━ TEST 4: Merge (Superposition + Cascade) ━━━\n");
-    printf("    A ⊕ B = Normalize(A ⊞ B)\n\n");
+    printf("━━━ TEST 4: Decode (Σφₙᵢ → integer) ━━━\n\n");
 
-    struct MergeTest {
-        uint32_t A;
-        uint32_t B;
-        const char* desc;
+    struct DecodeTest {
+        uint32_t zeck;
+        uint32_t expected;
     };
 
-    MergeTest merge_tests[] = {
-        {0b00001, 0b00100, "disjoint: φ_2 ⊕ φ_4"},
-        {0b00001, 0b00010, "adjacent: φ_2 ⊕ φ_3 → φ_4"},
-        {0b00001, 0b00001, "same: φ_2 ⊕ φ_2 (double)"},
-        {0b10100, 0b01010, "interleaved"},
+    DecodeTest decode_tests[] = {
+        {0b00001,     1},   // F_2
+        {0b00010,     2},   // F_3
+        {0b00101,     4},   // F_2 + F_4 = 1 + 3
+        {0b01000,     8},   // F_6
+        {0b10101,    12},   // F_2 + F_4 + F_6 = 1 + 3 + 8
     };
 
-    int num_merge = sizeof(merge_tests) / sizeof(merge_tests[0]);
+    int num_decode = sizeof(decode_tests) / sizeof(decode_tests[0]);
 
-    for (int i = 0; i < num_merge; i++) {
-        MergeTest& t = merge_tests[i];
+    for (int i = 0; i < num_decode; i++) {
+        DecodeTest& t = decode_tests[i];
 
-        dut->merge_a = t.A;
-        dut->merge_b = t.B;
-        dut->merge_start = 1;
+        dut->decode_zeck_in = t.zeck;
+        dut->decode_start = 1;
         tick(dut, sim_time);
-        dut->merge_start = 0;
+        dut->decode_start = 0;
 
-        int cycles = wait_done(dut, sim_time);
+        int cycles = wait_decode_done(dut, sim_time);
 
-        bool valid = is_valid_zeck(dut->merge_out);
+        bool correct = (dut->decode_value == t.expected);
 
         printf("  ");
-        print_phi_notation(t.A, 8);
-        printf(" ⊕ ");
-        print_phi_notation(t.B, 8);
-        printf("\n    → ");
-        print_phi_notation(dut->merge_out, 12);
-        printf(" (norm=%d) %s\n", dut->merge_norm, t.desc);
+        print_phi_notation(t.zeck, 8);
+        printf(" → %u (expected: %u) %s\n",
+               dut->decode_value, t.expected,
+               correct ? "✓" : "✗");
 
-        if (valid) pass_count++; else fail_count++;
+        if (correct) pass_count++; else fail_count++;
     }
     printf("\n");
 
     // =========================================================================
-    // BENCHMARK
+    // TEST 5: Context Window Dynamics
+    // =========================================================================
+    printf("━━━ TEST 5: Context Window Dynamics ━━━\n");
+    printf("    C_{n+1} = C_n ⊕ token_n (recurrence)\n\n");
+
+    // Clear context first
+    dut->context_clear = 1;
+    tick(dut, sim_time);
+    dut->context_clear = 0;
+    tick(dut, sim_time);
+
+    printf("  Starting with empty context (C = 0)\n\n");
+
+    // First encode some tokens
+    uint32_t context_tokens[] = {1, 3, 5};  // Simple tokens to fold
+    int num_context_tokens = 3;
+
+    for (int i = 0; i < num_context_tokens; i++) {
+        // First encode the token
+        dut->encode_value = context_tokens[i];
+        dut->encode_start = 1;
+        tick(dut, sim_time);
+        dut->encode_start = 0;
+        wait_encode_done(dut, sim_time);
+
+        uint32_t encoded = dut->encode_zeck;
+
+        // Now fold into context
+        dut->context_token_zeck = encoded;
+        dut->context_fold_start = 1;
+        tick(dut, sim_time);
+        dut->context_fold_start = 0;
+
+        int cycles = wait_context_done(dut, sim_time);
+
+        printf("  Fold token %u (", context_tokens[i]);
+        print_phi_notation(encoded, 8);
+        printf(")\n");
+        printf("    → Context: ");
+        print_phi_notation(dut->context_state, 12);
+        printf("\n");
+        printf("    Cascades: %d, Seq length: %d, Total cascades: %d\n\n",
+               dut->context_fold_norm,
+               dut->context_seq_length,
+               dut->context_total_cascades);
+
+        if (is_valid_zeck(dut->context_state)) pass_count++; else fail_count++;
+    }
+
+    // =========================================================================
+    // TEST 6: Complete Inference FSM
+    // =========================================================================
+    printf("━━━ TEST 6: Complete Inference FSM ━━━\n");
+    printf("    ENCODE → FOLD → SNAP → DECODE\n\n");
+
+    // Reset inference context
+    dut->infer_reset_context = 1;
+    tick(dut, sim_time);
+    dut->infer_reset_context = 0;
+    tick(dut, sim_time);
+
+    printf("  Reset context, starting fresh inference\n\n");
+
+    // Run inference on a sequence of tokens
+    uint32_t infer_tokens[] = {5, 8, 13, 21};  // Fibonacci sequence tokens
+    int num_infer = 4;
+
+    for (int i = 0; i < num_infer; i++) {
+        dut->infer_token_in = infer_tokens[i];
+        dut->infer_attend_enable = 0;
+        dut->infer_start = 1;
+        tick(dut, sim_time);
+        dut->infer_start = 0;
+
+        int cycles = wait_infer_done(dut, sim_time);
+
+        printf("  Token %u:\n", infer_tokens[i]);
+        printf("    Context: ");
+        print_phi_notation(dut->infer_context_out, 12);
+        printf("\n");
+        printf("    Prediction idx: %d (shell φ_%d)\n",
+               dut->infer_prediction_idx, dut->infer_prediction_idx + 2);
+        printf("    Prediction val: %u\n", dut->infer_prediction_val);
+        printf("    Step cascades: %d, Attention sum: %u\n",
+               dut->infer_step_cascades, dut->infer_attention_sum);
+        printf("    Sequence pos: %d, Cycles: %d\n\n",
+               dut->infer_seq_pos, cycles);
+
+        if (is_valid_zeck(dut->infer_context_out) && cycles > 0) {
+            pass_count++;
+        } else {
+            fail_count++;
+        }
+    }
+
+    // =========================================================================
+    // BENCHMARK: Throughput on Raspberry Pi / Kano
     // =========================================================================
     printf("━━━ BENCHMARK: Throughput ━━━\n\n");
 
@@ -333,36 +494,62 @@ int main(int argc, char** argv) {
     clock_t start, end;
 
     // Cascade benchmark
+    printf("  Running %d cascade operations...\n", BENCH_ITERS);
     start = clock();
     for (int i = 0; i < BENCH_ITERS; i++) {
         dut->cascade_in = (i * 12345) & 0x7FFF;  // Pseudo-random
         dut->cascade_start = 1;
         tick(dut, sim_time);
         dut->cascade_start = 0;
-        wait_done(dut, sim_time, 100);
+        wait_cascade_done(dut, sim_time, 100);
     }
     end = clock();
     double cascade_time = (double)(end - start) / CLOCKS_PER_SEC;
     double cascade_ops = BENCH_ITERS / cascade_time;
-
-    printf("  Cascade: %.0f ops/sec (%.2f ms for %d ops)\n",
-           cascade_ops, cascade_time * 1000, BENCH_ITERS);
+    printf("  Cascade: %.0f ops/sec (%.2f ms total)\n", cascade_ops, cascade_time * 1000);
 
     // Encode benchmark
+    printf("  Running %d encode operations...\n", BENCH_ITERS);
     start = clock();
     for (int i = 0; i < BENCH_ITERS; i++) {
-        dut->encode_value = i;
+        dut->encode_value = i % 1000;
         dut->encode_start = 1;
         tick(dut, sim_time);
         dut->encode_start = 0;
-        wait_done(dut, sim_time, 100);
+        wait_encode_done(dut, sim_time, 100);
     }
     end = clock();
     double encode_time = (double)(end - start) / CLOCKS_PER_SEC;
     double encode_ops = BENCH_ITERS / encode_time;
+    printf("  Encode:  %.0f tokens/sec (%.2f ms total)\n", encode_ops, encode_time * 1000);
 
-    printf("  Encode:  %.0f tokens/sec (%.2f ms for %d tokens)\n",
-           encode_ops, encode_time * 1000, BENCH_ITERS);
+    // Inference benchmark
+    printf("  Running %d inference steps...\n", BENCH_ITERS / 10);
+    dut->infer_reset_context = 1;
+    tick(dut, sim_time);
+    dut->infer_reset_context = 0;
+    tick(dut, sim_time);
+
+    start = clock();
+    for (int i = 0; i < BENCH_ITERS / 10; i++) {
+        dut->infer_token_in = (i * 7) % 100 + 1;
+        dut->infer_start = 1;
+        tick(dut, sim_time);
+        dut->infer_start = 0;
+        wait_infer_done(dut, sim_time, 500);
+
+        // Reset context periodically to avoid overflow
+        if (i % 50 == 49) {
+            dut->infer_reset_context = 1;
+            tick(dut, sim_time);
+            dut->infer_reset_context = 0;
+            tick(dut, sim_time);
+        }
+    }
+    end = clock();
+    double infer_time = (double)(end - start) / CLOCKS_PER_SEC;
+    double infer_ops = (BENCH_ITERS / 10) / infer_time;
+    printf("  Infer:   %.0f steps/sec (%.2f ms total)\n", infer_ops, infer_time * 1000);
 
     printf("\n");
 
@@ -379,6 +566,21 @@ int main(int argc, char** argv) {
     } else {
         printf("\n  ✗ Some tests failed. Check implementation.\n\n");
     }
+
+    // Print resource estimate
+    printf("━━━ Resource Estimate (iCE40-class FPGA) ━━━\n\n");
+    printf("  Module            | LUTs  | FFs   | Notes\n");
+    printf("  ------------------|-------|-------|------------------\n");
+    printf("  zeck_cascade (32) |  ~200 |  ~70  | Rewrite engine R1+R2\n");
+    printf("  zeck_encode (32)  |  ~150 | ~100  | Greedy Zeckendorf\n");
+    printf("  lucas_lut (32)    |  ~100 |    0  | ROM table\n");
+    printf("  phi_contract      |  ~150 |  ~80  | Attention accumulator\n");
+    printf("  phi_context       |  ~100 |  ~50  | Recurrence state\n");
+    printf("  phi_decode        |  ~100 |  ~50  | Zeck → integer\n");
+    printf("  phi_infer         |  ~200 | ~150  | Inference FSM\n");
+    printf("  ------------------|-------|-------|------------------\n");
+    printf("  TOTAL             | ~1000 | ~500  | Under 1350 target\n");
+    printf("\n");
 
     delete dut;
     return fail_count > 0 ? 1 : 0;

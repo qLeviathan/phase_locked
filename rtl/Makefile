@@ -23,7 +23,10 @@ RTL_FILES = zeck_top.v \
             zeck_encode.v \
             zeck_merge.v \
             lucas_lut.v \
-            phi_contract.v
+            phi_contract.v \
+            phi_context.v \
+            phi_decode.v \
+            phi_infer.v
 
 TB_FILE = sim/tb_zeck.cpp
 
