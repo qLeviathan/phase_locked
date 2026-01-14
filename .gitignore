@@ -133,3 +133,9 @@ outputs/
 # Marc's documentation folder
 outputs/visualizations/marcDocs/
 outputs/visualizations/marcDocs/*
+
+# ZISA test artifacts
+tests/zisa/cache/
+tests/zisa/test_data.bin
+rtl/obj_dir/
+*.vcd
