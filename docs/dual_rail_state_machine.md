@@ -1,65 +1,71 @@
 # φ-ψ Dual-Rail Sequence State Machine
-## Complete Mathematical Specification
+## LUT-Based Architecture with Lucas State Tracking
 
-**Core Principle:** We never compute φⁿ or ψⁿ. We only track indices n ∈ ℤ and Fibonacci coefficients (Fₙ, Fₙ₋₁).
+**Core Principle:** We never compute φⁿ or ψⁿ. We track indices and Fibonacci/Lucas coefficient pairs.
 
 ---
 
-## §1 Fundamental Representation
-
-### §1.1 The Binet Decomposition (Index Form)
+## §1 The Dual-Coefficient Representation
 
 Every power of φ decomposes into integer coefficients:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                     BINET DECOMPOSITION (INTEGER FORM)                       │
+│                   BINET DECOMPOSITION (INTEGER FORM)                         │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│   φⁿ = Fₙ · φ + Fₙ₋₁                                                        │
-│   ψⁿ = Fₙ · ψ + Fₙ₋₁    (same coefficients, different eigenvalue)          │
+│   φⁿ = Fₙ · φ + Fₙ₋₁        (Fibonacci coefficients)                        │
+│   ψⁿ = Fₙ · ψ + Fₙ₋₁        (Same coefficients, conjugate eigenvalue)       │
 │                                                                              │
-│   STORED STATE: (n, Fₙ, Fₙ₋₁)  ← three integers, no floats                 │
+│   STANDING WAVE (sum of paths):                                             │
+│   φⁿ + ψⁿ = Lₙ              (Lucas number - integer!)                       │
 │                                                                              │
-│   EXAMPLES:                                                                  │
-│   ┌────────┬────────────────────────────────────────────────────────────┐   │
-│   │   n    │   φⁿ = Fₙ·φ + Fₙ₋₁                                        │   │
-│   ├────────┼────────────────────────────────────────────────────────────┤   │
-│   │   0    │   φ⁰ = 0·φ + 1 = 1           (F₀=0, F₋₁=1)                │   │
-│   │   1    │   φ¹ = 1·φ + 0 = φ           (F₁=1, F₀=0)                 │   │
-│   │   2    │   φ² = 1·φ + 1 = φ+1         (F₂=1, F₁=1)                 │   │
-│   │   3    │   φ³ = 2·φ + 1               (F₃=2, F₂=1)                 │   │
-│   │   4    │   φ⁴ = 3·φ + 2               (F₄=3, F₃=2)                 │   │
-│   │   5    │   φ⁵ = 5·φ + 3               (F₅=5, F₄=3)                 │   │
-│   │   6    │   φ⁶ = 8·φ + 5               (F₆=8, F₅=5)                 │   │
-│   │   7    │   φ⁷ = 13·φ + 8              (F₇=13, F₆=8)                │   │
-│   └────────┴────────────────────────────────────────────────────────────┘   │
+│   TRAVELING WAVE (difference of paths):                                      │
+│   φⁿ - ψⁿ = Fₙ · √5         (Fibonacci × √5)                                │
 │                                                                              │
-│   THE INDICES ARE THE VALUES. No floating point ever required.              │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                                                              │
+│   STATE REPRESENTATION:                                                      │
+│                                                                              │
+│       (n, Fₙ, Lₙ)  ←  Three integers encode complete φⁿ information        │
+│                                                                              │
+│       Fₙ: "Position" - where we are in the sequence                        │
+│       Lₙ: "Velocity" - standing wave amplitude at this point               │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### §1.2 Index Arithmetic (Log-φ Space)
+### §1.1 The F-L Coefficient Table
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        INDEX-SPACE OPERATIONS                                │
+│                     FIBONACCI-LUCAS STATE TABLE                              │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│   log_φ(φⁿ) = n                                                             │
+│   ┌──────┬──────┬──────┬──────────────────────────────────────────────────┐ │
+│   │  n   │  Fₙ  │  Lₙ  │  Interpretation                                  │ │
+│   ├──────┼──────┼──────┼──────────────────────────────────────────────────┤ │
+│   │  0   │   0  │   2  │  Origin: no position, max constructive interf.  │ │
+│   │  1   │   1  │   1  │  Unit step: position=1, velocity=1              │ │
+│   │  2   │   1  │   3  │  φ² = φ+1                                        │ │
+│   │  3   │   2  │   4  │                                                  │ │
+│   │  4   │   3  │   7  │                                                  │ │
+│   │  5   │   5  │  11  │                                                  │ │
+│   │  6   │   8  │  18  │                                                  │ │
+│   │  7   │  13  │  29  │                                                  │ │
+│   │  8   │  21  │  47  │                                                  │ │
+│   │  9   │  34  │  76  │                                                  │ │
+│   │ 10   │  55  │ 123  │                                                  │ │
+│   └──────┴──────┴──────┴──────────────────────────────────────────────────┘ │
 │                                                                              │
-│   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │  OPERATION      │  VALUE SPACE         │  INDEX SPACE              │   │
-│   ├─────────────────┼──────────────────────┼───────────────────────────┤   │
-│   │  Multiply       │  φⁿ · φᵐ = φⁿ⁺ᵐ      │  n + m        (ADD)       │   │
-│   │  Divide         │  φⁿ / φᵐ = φⁿ⁻ᵐ      │  n - m        (SUB)       │   │
-│   │  Power          │  (φⁿ)ᵏ = φⁿᵏ         │  n × k        (MUL)       │   │
-│   │  Inverse        │  1/φⁿ = φ⁻ⁿ          │  -n           (NEG)       │   │
-│   │  Compare        │  φⁿ > φᵐ iff n > m   │  n > m        (CMP)       │   │
-│   └─────────────────┴──────────────────────┴───────────────────────────┘   │
+│   RECURRENCES (both use same rule):                                         │
+│       Fₙ = Fₙ₋₁ + Fₙ₋₂       with F₀=0, F₁=1                               │
+│       Lₙ = Lₙ₋₁ + Lₙ₋₂       with L₀=2, L₁=1                               │
 │                                                                              │
-│   ALL FIELD OPERATIONS → INTEGER ARITHMETIC                                 │
+│   CROSS-RELATIONS:                                                           │
+│       Lₙ = Fₙ₊₁ + Fₙ₋₁       (Lucas bridges adjacent Fibonacci)            │
+│       Lₙ = 2Fₙ₊₁ - Fₙ        (alternative form)                            │
+│       Fₙ · Lₙ = F₂ₙ          (product gives doubled index)                 │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -68,712 +74,696 @@ Every power of φ decomposes into integer coefficients:
 
 ## §2 Dual-Rail State Machine
 
-### §2.1 Rail Definitions
+### §2.1 State Definition
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          DUAL-RAIL STRUCTURE                                 │
+│                          STATE STRUCTURE                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   S = (A_φ, A_ψ, F_acc, L_acc, τ_history)                                   │
+│                                                                              │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                                                                     │   │
+│   │   A_φ : uint64      Zeckendorf bits for φ-rail (position channel)  │   │
+│   │   A_ψ : uint64      Zeckendorf bits for ψ-rail (velocity channel)  │   │
+│   │                                                                     │   │
+│   │   F_acc : int       Accumulated Fibonacci coefficient              │   │
+│   │   L_acc : int       Accumulated Lucas coefficient                  │   │
+│   │                                                                     │   │
+│   │   τ_history : []    Cascade counts (cross-rail work quanta)        │   │
+│   │                                                                     │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│   The (F_acc, L_acc) pair tracks aggregate state across the sequence.       │
+│   The (A_φ, A_ψ) pair tracks shell-level topology.                          │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### §2.2 Rail Operators (Verlet Structure)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         RAIL OPERATORS                                       │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │   ╔═══════════════════════════════════════════════════════════════════════╗ │
-│   ║  RAIL    │ EIGENVALUE │ DIRECTION  │ OPERATOR σ      │ CHANNEL       ║ │
+│   ║  RAIL    │ EIGENVALUE │ SEQUENCE │ OPERATOR σ       │ CHANNEL        ║ │
 │   ╠═══════════════════════════════════════════════════════════════════════╣ │
-│   ║  φ-rail  │  φ ≈ 1.618 │ Forward +  │ (a,b)→(a+b,a)   │ Position      ║ │
-│   ║  ψ-rail  │  ψ ≈ -0.618│ Backward - │ (a,b)→(b,a-b)   │ Velocity      ║ │
+│   ║  φ-rail  │  φ ≈ 1.618 │    Fₙ    │ (a,b)→(a+b, a)   │ Position       ║ │
+│   ║  ψ-rail  │  ψ ≈ -0.618│    Lₙ    │ (a,b)→(a+b, a)   │ Velocity       ║ │
 │   ╚═══════════════════════════════════════════════════════════════════════╝ │
 │                                                                              │
-│   KEY INSIGHT: Same lattice, opposite traversal directions                  │
+│   FORWARD STEP σ:                                                           │
+│   ───────────────                                                           │
+│       (Fₙ₋₁, Fₙ₋₂) → (Fₙ₋₁ + Fₙ₋₂, Fₙ₋₁) = (Fₙ, Fₙ₋₁)                    │
+│       (Lₙ₋₁, Lₙ₋₂) → (Lₙ₋₁ + Lₙ₋₂, Lₙ₋₁) = (Lₙ, Lₙ₋₁)                    │
 │                                                                              │
-│   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │                                                                     │   │
-│   │          σ: FORWARD FIBONACCI                                       │   │
-│   │          ════════════════════                                       │   │
-│   │                                                                     │   │
-│   │          (Fₙ₋₁, Fₙ₋₂) ──σ──▶ (Fₙ₋₁ + Fₙ₋₂, Fₙ₋₁) = (Fₙ, Fₙ₋₁)    │   │
-│   │                                                                     │   │
-│   │          Example: (1, 0) → (1, 1) → (2, 1) → (3, 2) → (5, 3) → ... │   │
-│   │                                                                     │   │
-│   │          ─────────────────────────────────────────────────────────  │   │
-│   │                                                                     │   │
-│   │          σ⁻¹: BACKWARD FIBONACCI                                    │   │
-│   │          ═══════════════════════                                    │   │
-│   │                                                                     │   │
-│   │          (Fₙ, Fₙ₋₁) ──σ⁻¹──▶ (Fₙ₋₁, Fₙ - Fₙ₋₁) = (Fₙ₋₁, Fₙ₋₂)    │   │
-│   │                                                                     │   │
-│   │          Example: (5, 3) → (3, 2) → (2, 1) → (1, 1) → (1, 0) → ... │   │
-│   │                                                                     │   │
-│   └─────────────────────────────────────────────────────────────────────┘   │
+│   BACKWARD STEP σ⁻¹:                                                        │
+│   ─────────────────                                                         │
+│       (Fₙ, Fₙ₋₁) → (Fₙ₋₁, Fₙ - Fₙ₋₁) = (Fₙ₋₁, Fₙ₋₂)                      │
+│       (Lₙ, Lₙ₋₁) → (Lₙ₋₁, Lₙ - Lₙ₋₁) = (Lₙ₋₁, Lₙ₋₂)                      │
+│                                                                              │
+│   BOTH rails use the SAME recurrence - they differ only in initial          │
+│   conditions: F starts (0,1), L starts (2,1).                               │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### §2.2 The Cross-Coupling Law
+### §2.3 Lucas as Velocity Channel
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        CROSS-COUPLING MECHANICS                              │
+│                    LUCAS STATE TRACKING                                      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│   SAME-RAIL INNER PRODUCTS (NO COUPLING):                                   │
+│   WHY LUCAS FOR VELOCITY:                                                   │
+│   ═══════════════════════                                                   │
 │                                                                              │
-│       ⟨Δφ | Δφ⟩ = 0      Movement on φ-rail alone = no work                │
-│       ⟨Δψ | Δψ⟩ = 0      Movement on ψ-rail alone = no work                │
+│   Lₙ = φⁿ + ψⁿ   (standing wave: forward + backward interference)          │
 │                                                                              │
-│   CROSS-RAIL INNER PRODUCT (COMPUTATION):                                   │
+│   At any state, Lucas tells us the TOTAL AMPLITUDE of the standing wave.   │
+│   This is the "velocity" - how much energy is oscillating at this point.   │
 │                                                                              │
-│       ⟨Δφ | Δψ⟩ ≠ 0      Rail crossing = computational work                │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                                                                     │   │
+│   │   L₀ = 2    Maximum constructive interference at origin            │   │
+│   │   L₁ = 1    Unit velocity                                          │   │
+│   │   Lₙ → φⁿ   As n→∞, ψⁿ→0, standing wave ≈ traveling wave          │   │
+│   │                                                                     │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                              │
-│   ═══════════════════════════════════════════════════════════════════════   │
+│   STATE ANALYSIS via (F, L) pair:                                           │
+│   ────────────────────────────────                                           │
 │                                                                              │
-│                          τ = CASCADE COUNT                                   │
-│                                                                              │
-│       The metric τ counts cross-rail events.                                │
-│       This is the "action" - quanta of computational work.                  │
-│                                                                              │
-│   ═══════════════════════════════════════════════════════════════════════   │
-│                                                                              │
-│   PHYSICAL ANALOGY:                                                         │
-│                                                                              │
-│       φ-rail ↔ Position channel (where we are)                             │
-│       ψ-rail ↔ Velocity channel (how we got here)                          │
-│                                                                              │
-│       Cross-coupling = momentum exchange = work performed                   │
+│   ┌──────────────────┬─────────────────────────────────────────────────┐    │
+│   │   Condition      │   Interpretation                                │    │
+│   ├──────────────────┼─────────────────────────────────────────────────┤    │
+│   │   L > 2F         │   Early sequence, strong constructive interf.   │    │
+│   │   L ≈ φ·F        │   Asymptotic regime, stable propagation         │    │
+│   │   L = F+1 + F-1  │   Lucas bridges: state is "between" shells      │    │
+│   │   F·L = F₂ₙ      │   Doubling: combined state jumps 2 shells       │    │
+│   └──────────────────┴─────────────────────────────────────────────────┘    │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## §3 State Representation
-
-### §3.1 Token State (Pure Integer Form)
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                     TOKEN STATE S(t, pos)                                    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   S = (A_φ, A_ψ, τ_history, pos)                                            │
-│                                                                              │
-│   where:                                                                     │
-│   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │                                                                     │   │
-│   │   A_φ : uint64    Zeckendorf bit-vector for φ-rail                 │   │
-│   │                   Bit k = 1 means "F_k is active on φ-rail"        │   │
-│   │                                                                     │   │
-│   │   A_ψ : uint64    Zeckendorf bit-vector for ψ-rail                 │   │
-│   │                   Bit k = 1 means "F_k is active on ψ-rail"        │   │
-│   │                                                                     │   │
-│   │   τ_history : []  List of cascade counts at each step              │   │
-│   │                   Enables exact reconstruction                      │   │
-│   │                                                                     │   │
-│   │   pos : int       Position in sequence (for Verlet alternation)    │   │
-│   │                                                                     │   │
-│   └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                              │
-│   INVARIANT (must hold at every step):                                      │
-│                                                                              │
-│       ∀k: NOT (A_φ[k] AND A_φ[k-1])    No adjacent 1s on φ-rail           │
-│       ∀k: NOT (A_ψ[k] AND A_ψ[k-1])    No adjacent 1s on ψ-rail           │
-│                                                                              │
-│   ZECKENDORF CONSTRAINT: Adjacent 1s are illegal states.                    │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### §3.2 Zeckendorf Bit-Vector Encoding
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    ZECKENDORF BIT-VECTOR ENCODING                            │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   Integer n → Bit-vector B where B[k] = 1 iff F_k in decomposition         │
-│                                                                              │
-│   EXAMPLES:                                                                  │
-│   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │    n   │  Decomposition           │  Bit Vector (k=7..0)           │   │
-│   ├────────┼──────────────────────────┼─────────────────────────────────┤   │
-│   │    1   │  1 = F₂                  │  00000010                       │   │
-│   │    2   │  2 = F₃                  │  00000100                       │   │
-│   │    3   │  3 = F₄                  │  00001000                       │   │
-│   │    4   │  4 = F₄ + F₂             │  00001010                       │   │
-│   │    5   │  5 = F₅                  │  00010000                       │   │
-│   │    6   │  6 = F₅ + F₂             │  00010010                       │   │
-│   │    7   │  7 = F₅ + F₃             │  00010100                       │   │
-│   │    8   │  8 = F₆                  │  00100000                       │   │
-│   │   10   │  10 = F₆ + F₃            │  00100100                       │   │
-│   │   17   │  17 = F₇ + F₄ + F₂       │  01001010                       │   │
-│   │  100   │  100 = F₁₁ + F₆ + F₄     │  10000101000                    │   │
-│   └────────┴──────────────────────────┴─────────────────────────────────┘   │
-│                                                                              │
-│   CONSTRAINT: No two adjacent bits can both be 1                            │
-│               (This is the Fibbinary property - OEIS A003714)               │
-│                                                                              │
-│   WHY: F_k + F_{k-1} = F_{k+1}, so adjacent 1s collapse to higher shell    │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## §4 Complete State Machine Diagram
+## §3 Complete State Machine
 
 ```
 ╔═══════════════════════════════════════════════════════════════════════════════╗
-║                   φ-ψ DUAL-RAIL SEQUENCE STATE MACHINE                        ║
-║                        (Pure Integer Implementation)                           ║
+║              φ-ψ DUAL-RAIL STATE MACHINE WITH LUCAS TRACKING                  ║
 ╠═══════════════════════════════════════════════════════════════════════════════╣
 ║                                                                               ║
 ║  ┌─────────────────────────────────────────────────────────────────────────┐ ║
-║  │                         LUT BANK (PRECOMPUTED)                          │ ║
+║  │                         LUT BANK                                        │ ║
 ║  ├─────────────────────────────────────────────────────────────────────────┤ ║
 ║  │                                                                         │ ║
-║  │   FIB[k]      : k → F_k                    (48 entries, k ∈ [0,47])    │ ║
-║  │   LUC[k]      : k → L_k                    (48 entries)                │ ║
-║  │   ZECK[n]     : n → bits                   (vocab_size entries)        │ ║
-║  │   UNZECK[bits]: bits → n                   (inverse lookup)            │ ║
-║  │   POP[16b]    : bits → popcount            (65536 entries)             │ ║
-║  │   ADJ[16b]    : bits → has_adjacent_11?    (65536 entries)             │ ║
-║  │   VOCAB[tok]  : token → frequency_rank     (corpus-derived)            │ ║
-║  │   ATTEN[d]    : d → weight (fixed-point)   (max_shells entries)        │ ║
+║  │   FIB[k]       : k → Fₖ                  (position at shell k)         │ ║
+║  │   LUC[k]       : k → Lₖ                  (velocity at shell k)         │ ║
+║  │   ZECK[n]      : n → bits                (value → topology)            │ ║
+║  │   UNZECK[bits] : bits → n                (topology → value)            │ ║
+║  │   POP[16b]     : bits → popcount         (shell count)                 │ ║
+║  │   VOCAB[tok]   : token → rank            (corpus frequency)            │ ║
 ║  │                                                                         │ ║
 ║  └─────────────────────────────────────────────────────────────────────────┘ ║
 ║                                      │                                        ║
 ║                                      ▼                                        ║
 ║  ╔═════════════════════════════════════════════════════════════════════════╗ ║
-║  ║                              INITIALIZATION                             ║ ║
+║  ║                           INITIALIZATION                                ║ ║
 ║  ╠═════════════════════════════════════════════════════════════════════════╣ ║
 ║  ║                                                                         ║ ║
-║  ║   INPUT: token_sequence = [t₀, t₁, t₂, ..., tₙ]                        ║ ║
-║  ║                                                                         ║ ║
 ║  ║   S₀ = {                                                                ║ ║
-║  ║       A_φ      : ZECK[VOCAB[t₀]]     // φ-rail accumulator            ║ ║
-║  ║       A_ψ      : 0x0                  // ψ-rail accumulator            ║ ║
-║  ║       τ_history: []                   // cascade history               ║ ║
-║  ║       pos      : 0                    // sequence position             ║ ║
+║  ║       A_φ   : ZECK[VOCAB[t₀]]    // φ-rail topology                    ║ ║
+║  ║       A_ψ   : 0                   // ψ-rail topology                    ║ ║
+║  ║       F_acc : FIB[max_shell(A_φ)] // Fibonacci state                   ║ ║
+║  ║       L_acc : LUC[max_shell(A_φ)] // Lucas state                       ║ ║
+║  ║       τ     : []                  // cascade history                    ║ ║
+║  ║       pos   : 0                                                         ║ ║
 ║  ║   }                                                                     ║ ║
 ║  ║                                                                         ║ ║
 ║  ╚═════════════════════════════════════════════════════════════════════════╝ ║
 ║                                      │                                        ║
 ║                                      ▼                                        ║
 ║  ┌─────────────────────────────────────────────────────────────────────────┐ ║
-║  │                              MAIN LOOP                                  │ ║
-║  │                        FOR i = 1 to n:                                  │ ║
+║  │                         MAIN PROCESSING LOOP                            │ ║
+║  │                       FOR each token t_i:                               │ ║
 ║  └──────────────────────────────────┬──────────────────────────────────────┘ ║
 ║                                     │                                         ║
-║              ┌──────────────────────┴───────────────────────┐                ║
-║              ▼                                              ▼                ║
-║  ╔═══════════════════════════════════╗    ╔═══════════════════════════════╗  ║
-║  ║      STEP 1: TOKENIZE              ║    ║      STEP 2: RAIL SELECT     ║  ║
-║  ╠═══════════════════════════════════╣    ╠═══════════════════════════════╣  ║
-║  ║                                   ║    ║                               ║  ║
-║  ║  rank_i = VOCAB[t_i]             ║    ║  VERLET ALTERNATION:          ║  ║
-║  ║  bits_i = ZECK[rank_i]           ║    ║                               ║  ║
-║  ║                                   ║    ║  if pos % 2 == 0:            ║  ║
-║  ║  // bits_i is Zeckendorf         ║    ║      target ← A_φ             ║  ║
-║  ║  // encoding of token rank       ║    ║      (position channel)       ║  ║
-║  ║                                   ║    ║  else:                        ║  ║
-║  ║                                   ║    ║      target ← A_ψ             ║  ║
-║  ║                                   ║    ║      (velocity channel)       ║  ║
-║  ║                                   ║    ║                               ║  ║
-║  ╚═══════════════════════════════════╝    ╚═══════════════════════════════╝  ║
-║              │                                              │                ║
-║              └──────────────────────┬───────────────────────┘                ║
 ║                                     ▼                                         ║
-║  ╔═══════════════════════════════════════════════════════════════════════╗   ║
-║  ║                     STEP 3: ACCUMULATE (CREATE ILLEGAL STATE)         ║   ║
-║  ╠═══════════════════════════════════════════════════════════════════════╣   ║
-║  ║                                                                       ║   ║
-║  ║      temp = target | bits_i       // Bitwise OR (Zeckendorf add)     ║   ║
-║  ║                                                                       ║   ║
-║  ║      EXAMPLE:                                                         ║   ║
-║  ║      ─────────                                                        ║   ║
-║  ║      target  = 00010010  (n=6: F₅ + F₂)                              ║   ║
-║  ║      bits_i  = 00001000  (n=3: F₄)                                   ║   ║
-║  ║      ────────────────────────────────                                 ║   ║
-║  ║      temp    = 00011010  (ILLEGAL: F₅ and F₄ adjacent!)              ║   ║
-║  ║                                                                       ║   ║
-║  ╚═══════════════════════════════════════════════════════════════════════╝   ║
+║  ╔═════════════════════════════════════════════════════════════════════════╗ ║
+║  ║                    STEP 1: TOKENIZE + RAIL SELECT                       ║ ║
+║  ╠═════════════════════════════════════════════════════════════════════════╣ ║
+║  ║                                                                         ║ ║
+║  ║   bits_i = ZECK[VOCAB[t_i]]                                             ║ ║
+║  ║                                                                         ║ ║
+║  ║   VERLET ALTERNATION:                                                   ║ ║
+║  ║       pos % 2 == 0  →  target = A_φ   (position update)                ║ ║
+║  ║       pos % 2 == 1  →  target = A_ψ   (velocity update)                ║ ║
+║  ║                                                                         ║ ║
+║  ╚═════════════════════════════════════════════════════════════════════════╝ ║
 ║                                     │                                         ║
 ║                                     ▼                                         ║
-║  ╔═══════════════════════════════════════════════════════════════════════╗   ║
-║  ║              STEP 4: PRIORITY CASCADE NORMALIZATION                   ║   ║
-║  ╠═══════════════════════════════════════════════════════════════════════╣   ║
-║  ║                                                                       ║   ║
-║  ║  τ_local = 0                                                         ║   ║
-║  ║                                                                       ║   ║
-║  ║  WHILE ADJ[temp] == TRUE:     // While adjacent 1s exist             ║   ║
-║  ║  ┌─────────────────────────────────────────────────────────────────┐ ║   ║
-║  ║  │                                                                 │ ║   ║
-║  ║  │  FOR k FROM MAX_SHELL DOWN TO 1:    // PRIORITY: high → low    │ ║   ║
-║  ║  │      IF temp[k] == 1 AND temp[k-1] == 1:                       │ ║   ║
-║  ║  │                                                                 │ ║   ║
-║  ║  │          // CASCADE RULE: F_k + F_{k-1} = F_{k+1}              │ ║   ║
-║  ║  │                                                                 │ ║   ║
-║  ║  │          temp[k]   ← 0        // Clear bit k                   │ ║   ║
-║  ║  │          temp[k-1] ← 0        // Clear bit k-1                 │ ║   ║
-║  ║  │          temp[k+1] ← 1        // Set bit k+1 (may cascade!)    │ ║   ║
-║  ║  │                                                                 │ ║   ║
-║  ║  │          τ_local++            // Count cross-rail event        │ ║   ║
-║  ║  │                                                                 │ ║   ║
-║  ║  │          BREAK  // Re-scan from top (priority preserved)       │ ║   ║
-║  ║  │                                                                 │ ║   ║
-║  ║  └─────────────────────────────────────────────────────────────────┘ ║   ║
-║  ║                                                                       ║   ║
-║  ║  target ← temp                                                       ║   ║
-║  ║  τ_history.append(τ_local)                                           ║   ║
-║  ║                                                                       ║   ║
-║  ║  ═══════════════════════════════════════════════════════════════════ ║   ║
-║  ║  CASCADE EXAMPLE:                                                     ║   ║
-║  ║  ═══════════════════════════════════════════════════════════════════ ║   ║
-║  ║                                                                       ║   ║
-║  ║  INPUT:  bits = [F₀ F₁ F₂ F₃] = [1 1 1 1]   (sum = 1+1+2+3 = 7)     ║   ║
-║  ║                                                                       ║   ║
-║  ║  TICK 0: [1 1 1 1]  Check k=3: bits[3]=1, bits[2]=1 → FIRE          ║   ║
-║  ║          F₃ + F₂ = F₄                                                ║   ║
-║  ║  TICK 1: [1 1 0 0 1]  k=4 set, k=3,k=2 cleared                      ║   ║
-║  ║          Check k=1: bits[1]=1, bits[0]=1 → FIRE                     ║   ║
-║  ║          F₁ + F₀ = F₂                                                ║   ║
-║  ║  TICK 2: [0 0 1 0 1]  k=2 set, k=1,k=0 cleared                      ║   ║
-║  ║          No adjacent 1s → DONE                                       ║   ║
-║  ║                                                                       ║   ║
-║  ║  OUTPUT: [0 0 1 0 1] = F₄ + F₂ = 5 + 2 = 7  ✓                       ║   ║
-║  ║  τ_local = 2 cascades                                                ║   ║
-║  ║                                                                       ║   ║
-║  ╚═══════════════════════════════════════════════════════════════════════╝   ║
+║  ╔═════════════════════════════════════════════════════════════════════════╗ ║
+║  ║                    STEP 2: ACCUMULATE                                   ║ ║
+║  ╠═════════════════════════════════════════════════════════════════════════╣ ║
+║  ║                                                                         ║ ║
+║  ║   temp = target | bits_i          // Zeckendorf addition (may violate) ║ ║
+║  ║                                                                         ║ ║
+║  ╚═════════════════════════════════════════════════════════════════════════╝ ║
 ║                                     │                                         ║
 ║                                     ▼                                         ║
-║  ╔═══════════════════════════════════════════════════════════════════════╗   ║
-║  ║                STEP 5: CROSS-RAIL VALIDATION                          ║   ║
-║  ╠═══════════════════════════════════════════════════════════════════════╣   ║
-║  ║                                                                       ║   ║
-║  ║  THE PHIPERBOLA CONSTRAINT (exact integer identity):                 ║   ║
-║  ║                                                                       ║   ║
-║  ║  ┌─────────────────────────────────────────────────────────────────┐ ║   ║
-║  ║  │                                                                 │ ║   ║
-║  ║  │              L_n² - 5·F_n² = 4·(-1)ⁿ                           │ ║   ║
-║  ║  │                                                                 │ ║   ║
-║  ║  │  This is EXACT for all n. No √5 at runtime.                    │ ║   ║
-║  ║  │                                                                 │ ║   ║
-║  ║  └─────────────────────────────────────────────────────────────────┘ ║   ║
-║  ║                                                                       ║   ║
-║  ║  COMPUTATION:                                                         ║   ║
-║  ║  ────────────                                                         ║   ║
-║  ║  F_equiv = Σ_k (A_φ[k] × FIB[k]) + Σ_k (A_ψ[k] × FIB[k])            ║   ║
-║  ║  L_equiv = Σ_k (A_φ[k] × LUC[k]) + Σ_k (A_ψ[k] × LUC[k])            ║   ║
-║  ║                                                                       ║   ║
-║  ║  invariant = L_equiv² - 5 × F_equiv²                                 ║   ║
-║  ║                                                                       ║   ║
-║  ║  ASSERT invariant ∈ {+4, -4}                                         ║   ║
-║  ║                                                                       ║   ║
-║  ║  ┌─────────────────────────────────────────────────────────────────┐ ║   ║
-║  ║  │  invariant == +4  →  n is even  →  Valid (F₁ = 1 signal)       │ ║   ║
-║  ║  │  invariant == -4  →  n is odd   →  Valid (F₁ = 1 signal)       │ ║   ║
-║  ║  │  invariant ∉ {±4} →  CORRUPTION DETECTED (F₀ = 0 signal)       │ ║   ║
-║  ║  └─────────────────────────────────────────────────────────────────┘ ║   ║
-║  ║                                                                       ║   ║
-║  ╚═══════════════════════════════════════════════════════════════════════╝   ║
+║  ╔═════════════════════════════════════════════════════════════════════════╗ ║
+║  ║                    STEP 3: CASCADE NORMALIZATION                        ║ ║
+║  ╠═════════════════════════════════════════════════════════════════════════╣ ║
+║  ║                                                                         ║ ║
+║  ║   τ_local = 0                                                          ║ ║
+║  ║                                                                         ║ ║
+║  ║   WHILE has_adjacent_11(temp):                                          ║ ║
+║  ║   ┌───────────────────────────────────────────────────────────────────┐║ ║
+║  ║   │  FOR k = MAX_SHELL down to 1:      // Priority: high shells first │║ ║
+║  ║   │      IF temp[k] AND temp[k-1]:                                    │║ ║
+║  ║   │                                                                   │║ ║
+║  ║   │          // CASCADE: Fₖ + Fₖ₋₁ = Fₖ₊₁                            │║ ║
+║  ║   │          temp[k]   ← 0                                            │║ ║
+║  ║   │          temp[k-1] ← 0                                            │║ ║
+║  ║   │          temp[k+1] ← 1                                            │║ ║
+║  ║   │                                                                   │║ ║
+║  ║   │          τ_local++                                                │║ ║
+║  ║   │          BREAK   // rescan from top                               │║ ║
+║  ║   │                                                                   │║ ║
+║  ║   └───────────────────────────────────────────────────────────────────┘║ ║
+║  ║                                                                         ║ ║
+║  ║   target ← temp                                                        ║ ║
+║  ║                                                                         ║ ║
+║  ╚═════════════════════════════════════════════════════════════════════════╝ ║
 ║                                     │                                         ║
 ║                                     ▼                                         ║
-║  ╔═══════════════════════════════════════════════════════════════════════╗   ║
-║  ║                    STEP 6: EMIT STATE                                 ║   ║
-║  ╠═══════════════════════════════════════════════════════════════════════╣   ║
-║  ║                                                                       ║   ║
-║  ║  state[pos] = (A_φ, A_ψ, τ_local)                                    ║   ║
-║  ║  pos++                                                                ║   ║
-║  ║                                                                       ║   ║
-║  ║  // Loop back to STEP 1 for next token                               ║   ║
-║  ║                                                                       ║   ║
-║  ╚═══════════════════════════════════════════════════════════════════════╝   ║
+║  ╔═════════════════════════════════════════════════════════════════════════╗ ║
+║  ║                    STEP 4: UPDATE LUCAS STATE                           ║ ║
+║  ╠═════════════════════════════════════════════════════════════════════════╣ ║
+║  ║                                                                         ║ ║
+║  ║   Compute aggregate (F, L) from both rails:                             ║ ║
+║  ║                                                                         ║ ║
+║  ║   ┌───────────────────────────────────────────────────────────────────┐║ ║
+║  ║   │                                                                   │║ ║
+║  ║   │   // Extract active shells from both rails                        │║ ║
+║  ║   │   shells_φ = active_indices(A_φ)   // e.g., {7, 4, 2}            │║ ║
+║  ║   │   shells_ψ = active_indices(A_ψ)   // e.g., {5, 3}               │║ ║
+║  ║   │                                                                   │║ ║
+║  ║   │   // Position: sum of Fibonacci values                            │║ ║
+║  ║   │   F_acc = Σₖ∈shells_φ FIB[k] + Σₖ∈shells_ψ FIB[k]                │║ ║
+║  ║   │                                                                   │║ ║
+║  ║   │   // Velocity: sum of Lucas values                                │║ ║
+║  ║   │   L_acc = Σₖ∈shells_φ LUC[k] + Σₖ∈shells_ψ LUC[k]                │║ ║
+║  ║   │                                                                   │║ ║
+║  ║   └───────────────────────────────────────────────────────────────────┘║ ║
+║  ║                                                                         ║ ║
+║  ║   STATE ANALYSIS from (F_acc, L_acc):                                   ║ ║
+║  ║                                                                         ║ ║
+║  ║   ┌───────────────────────────────────────────────────────────────────┐║ ║
+║  ║   │                                                                   │║ ║
+║  ║   │   ratio = L_acc / F_acc                                           │║ ║
+║  ║   │                                                                   │║ ║
+║  ║   │   ratio > φ   →  constructive interference dominant               │║ ║
+║  ║   │   ratio ≈ φ   →  asymptotic stable state                          │║ ║
+║  ║   │   ratio < φ   →  destructive interference (rare)                  │║ ║
+║  ║   │                                                                   │║ ║
+║  ║   │   momentum = L_acc - φ·F_acc   (deviation from equilibrium)      │║ ║
+║  ║   │                                                                   │║ ║
+║  ║   └───────────────────────────────────────────────────────────────────┘║ ║
+║  ║                                                                         ║ ║
+║  ╚═════════════════════════════════════════════════════════════════════════╝ ║
+║                                     │                                         ║
+║                                     ▼                                         ║
+║  ╔═════════════════════════════════════════════════════════════════════════╗ ║
+║  ║                    STEP 5: EMIT STATE                                   ║ ║
+║  ╠═════════════════════════════════════════════════════════════════════════╣ ║
+║  ║                                                                         ║ ║
+║  ║   state[pos] = {                                                        ║ ║
+║  ║       A_φ     : A_φ,                                                    ║ ║
+║  ║       A_ψ     : A_ψ,                                                    ║ ║
+║  ║       F       : F_acc,           // Position                            ║ ║
+║  ║       L       : L_acc,           // Velocity                            ║ ║
+║  ║       τ       : τ_local,         // Work performed this step            ║ ║
+║  ║       ratio   : L_acc / F_acc    // Phase state indicator               ║ ║
+║  ║   }                                                                     ║ ║
+║  ║                                                                         ║ ║
+║  ║   τ_history.append(τ_local)                                             ║ ║
+║  ║   pos++                                                                 ║ ║
+║  ║                                                                         ║ ║
+║  ╚═════════════════════════════════════════════════════════════════════════╝ ║
 ║                                                                               ║
 ╚═══════════════════════════════════════════════════════════════════════════════╝
 ```
 
 ---
 
-## §5 Attention Computation
-
-```
-╔═══════════════════════════════════════════════════════════════════════════════╗
-║                    ATTENTION: SHELL DISTANCE METRIC                           ║
-╠═══════════════════════════════════════════════════════════════════════════════╣
-║                                                                               ║
-║  For positions i, j with states S_i = (A_φⁱ, A_ψⁱ), S_j = (A_φʲ, A_ψʲ):      ║
-║                                                                               ║
-║  ┌─────────────────────────────────────────────────────────────────────────┐ ║
-║  │                                                                         │ ║
-║  │  DISTANCE (2 instructions per rail):                                    │ ║
-║  │  ═══════════════════════════════════                                    │ ║
-║  │                                                                         │ ║
-║  │      d_φ = POPCOUNT[ A_φⁱ ⊕ A_φʲ ]    // XOR + popcount               │ ║
-║  │      d_ψ = POPCOUNT[ A_ψⁱ ⊕ A_ψʲ ]    // XOR + popcount               │ ║
-║  │                                                                         │ ║
-║  │  INTERPRETATION:                                                        │ ║
-║  │      d_φ = number of shells where φ-rails disagree                     │ ║
-║  │      d_ψ = number of shells where ψ-rails disagree                     │ ║
-║  │                                                                         │ ║
-║  └─────────────────────────────────────────────────────────────────────────┘ ║
-║                                                                               ║
-║  ┌─────────────────────────────────────────────────────────────────────────┐ ║
-║  │                                                                         │ ║
-║  │  ATTENTION WEIGHT:                                                      │ ║
-║  │  ═════════════════                                                      │ ║
-║  │                                                                         │ ║
-║  │      α_ij = ATTEN[d_φ] × ATTEN[d_ψ] × CAUSAL[i,j]                      │ ║
-║  │                                                                         │ ║
-║  │  where:                                                                 │ ║
-║  │      ATTEN[d] = φ^{-d}  (precomputed as fixed-point integer)           │ ║
-║  │      CAUSAL[i,j] = (j ≤ i) ? 1 : 0                                     │ ║
-║  │                                                                         │ ║
-║  │  BENCHMARK:                                                             │ ║
-║  │      XOR:      ~1.8 ns                                                  │ ║
-║  │      POPCOUNT: ~1.3 ns                                                  │ ║
-║  │      Total:    ~3.0 ns per position pair                                │ ║
-║  │      Rate:     ~333 million attention weights / second                  │ ║
-║  │                                                                         │ ║
-║  └─────────────────────────────────────────────────────────────────────────┘ ║
-║                                                                               ║
-║  ┌─────────────────────────────────────────────────────────────────────────┐ ║
-║  │                                                                         │ ║
-║  │  FULL ATTENTION MATRIX (for sequence length L):                         │ ║
-║  │  ═══════════════════════════════════════════════                        │ ║
-║  │                                                                         │ ║
-║  │      FOR i = 0 to L-1:                                                  │ ║
-║  │          FOR j = 0 to i:           // Causal mask                       │ ║
-║  │              d_φ = POP[A_φⁱ ⊕ A_φʲ]                                    │ ║
-║  │              d_ψ = POP[A_ψⁱ ⊕ A_ψʲ]                                    │ ║
-║  │              α[i,j] = ATTEN[d_φ + d_ψ]                                  │ ║
-║  │                                                                         │ ║
-║  │  COMPLEXITY: O(L²) but each operation is ~3 ns                         │ ║
-║  │                                                                         │ ║
-║  └─────────────────────────────────────────────────────────────────────────┘ ║
-║                                                                               ║
-╚═══════════════════════════════════════════════════════════════════════════════╝
-```
-
----
-
-## §6 Next Token Prediction (DAG Traversal)
-
-```
-╔═══════════════════════════════════════════════════════════════════════════════╗
-║                     DAG TRAVERSAL: GENERATION                                 ║
-╠═══════════════════════════════════════════════════════════════════════════════╣
-║                                                                               ║
-║  STATE SPACE = All valid (A_φ, A_ψ) pairs where:                             ║
-║      • No adjacent 1s in A_φ                                                 ║
-║      • No adjacent 1s in A_ψ                                                 ║
-║                                                                               ║
-║  This is the Fibbinary numbers (OEIS A003714) on each rail.                  ║
-║                                                                               ║
-║  ┌─────────────────────────────────────────────────────────────────────────┐ ║
-║  │                                                                         │ ║
-║  │                         DAG STRUCTURE                                   │ ║
-║  │                         ═════════════                                   │ ║
-║  │                                                                         │ ║
-║  │          S₀ ──────────────┬───────────────┬───────────────┐            │ ║
-║  │          │                │               │               │            │ ║
-║  │       tok_A            tok_B           tok_C           tok_D           │ ║
-║  │       (τ=0)            (τ=1)           (τ=0)           (τ=2)           │ ║
-║  │          │                │               │               │            │ ║
-║  │          ▼                ▼               ▼               ▼            │ ║
-║  │         S_A              S_B             S_C             S_D           │ ║
-║  │          │                │               │               │            │ ║
-║  │         ...              ...             ...             ...           │ ║
-║  │                                                                         │ ║
-║  │  NODES: Valid states (A_φ, A_ψ)                                        │ ║
-║  │  EDGES: Token additions that connect states                             │ ║
-║  │  WEIGHTS: f(τ_local, attention_overlap, corpus_frequency)               │ ║
-║  │                                                                         │ ║
-║  └─────────────────────────────────────────────────────────────────────────┘ ║
-║                                                                               ║
-║  ┌─────────────────────────────────────────────────────────────────────────┐ ║
-║  │                                                                         │ ║
-║  │  SUCCESSOR ENUMERATION:                                                 │ ║
-║  │  ══════════════════════                                                 │ ║
-║  │                                                                         │ ║
-║  │  Current state: S = (A_φ, A_ψ, pos)                                     │ ║
-║  │                                                                         │ ║
-║  │  FOR each candidate token t in vocabulary:                              │ ║
-║  │                                                                         │ ║
-║  │      bits_t = ZECK[VOCAB[t]]                                            │ ║
-║  │      S' = APPLY_CASCADE(S, bits_t)                                      │ ║
-║  │      τ_t = cascade_count(S → S')                                        │ ║
-║  │                                                                         │ ║
-║  │      // Attention to context                                            │ ║
-║  │      attn_sum = Σⱼ α(S', state[j])                                      │ ║
-║  │                                                                         │ ║
-║  │      // Edge weight combines cascade cost and attention                 │ ║
-║  │      weight_t = f(τ_t, attn_sum, frequency[t])                          │ ║
-║  │                                                                         │ ║
-║  │  SELECTION:                                                             │ ║
-║  │      next_token = argmax_t { weight_t }                                 │ ║
-║  │                                                                         │ ║
-║  └─────────────────────────────────────────────────────────────────────────┘ ║
-║                                                                               ║
-║  ┌─────────────────────────────────────────────────────────────────────────┐ ║
-║  │                                                                         │ ║
-║  │  KEY PROPERTIES:                                                        │ ║
-║  │  ═══════════════                                                        │ ║
-║  │                                                                         │ ║
-║  │  • DETERMINISTIC: Same input → same output (bit-exact)                  │ ║
-║  │                                                                         │ ║
-║  │  • NON-LINEAR: Cascade creates discontinuous state transitions          │ ║
-║  │                F₃+F₂ = F₄ is a "jump" not a smooth flow                │ ║
-║  │                                                                         │ ║
-║  │  • PARALLEL: φ-rail and ψ-rail update independently                     │ ║
-║  │              SIMD-friendly (process both rails simultaneously)          │ ║
-║  │                                                                         │ ║
-║  │  • REVERSIBLE: τ_history enables exact reconstruction                   │ ║
-║  │                Inverse cascade: F_{k+1} → F_k + F_{k-1}                 │ ║
-║  │                                                                         │ ║
-║  │  • BOUNDED: Zeckendorf representation is unique                         │ ║
-║  │             Max shells ≈ log_φ(vocab_size) ≈ 48 for 10B vocab          │ ║
-║  │                                                                         │ ║
-║  └─────────────────────────────────────────────────────────────────────────┘ ║
-║                                                                               ║
-╚═══════════════════════════════════════════════════════════════════════════════╝
-```
-
----
-
-## §7 Verlet Integrator Correspondence
-
-```
-╔═══════════════════════════════════════════════════════════════════════════════╗
-║                     VERLET INTEGRATOR STRUCTURE                               ║
-╠═══════════════════════════════════════════════════════════════════════════════╣
-║                                                                               ║
-║  The Fibonacci recurrence IS a symplectic integrator:                        ║
-║                                                                               ║
-║  ┌─────────────────────────────────────────────────────────────────────────┐ ║
-║  │                                                                         │ ║
-║  │  STANDARD VERLET:                                                       │ ║
-║  │      x_{n+1} = 2·x_n - x_{n-1} + a_n·Δt²                                │ ║
-║  │                                                                         │ ║
-║  │  WITH a_n = 0, Δt = 1, relabeling:                                      │ ║
-║  │      x_{n+1} = x_n + x_{n-1}                                            │ ║
-║  │                                                                         │ ║
-║  │  THIS IS FIBONACCI!                                                     │ ║
-║  │                                                                         │ ║
-║  └─────────────────────────────────────────────────────────────────────────┘ ║
-║                                                                               ║
-║  ┌─────────────────────────────────────────────────────────────────────────┐ ║
-║  │                                                                         │ ║
-║  │  DUAL-CHANNEL INTERPRETATION:                                           │ ║
-║  │  ════════════════════════════                                           │ ║
-║  │                                                                         │ ║
-║  │  ┌──────────┬──────────┬─────────────────┬─────────────────────────┐   │ ║
-║  │  │ SEQUENCE │  ROLE    │ INITIAL COND.   │ PHYSICAL MEANING        │   │ ║
-║  │  ├──────────┼──────────┼─────────────────┼─────────────────────────┤   │ ║
-║  │  │   F_n    │ Position │ F₀=0, F₁=1      │ "Where we are"          │   │ ║
-║  │  │   L_n    │ Velocity │ L₀=2, L₁=1      │ "How we got here"       │   │ ║
-║  │  └──────────┴──────────┴─────────────────┴─────────────────────────┘   │ ║
-║  │                                                                         │ ║
-║  │  The constraint L² - 5F² = ±4 is ENERGY CONSERVATION                   │ ║
-║  │  binding both channels.                                                 │ ║
-║  │                                                                         │ ║
-║  └─────────────────────────────────────────────────────────────────────────┘ ║
-║                                                                               ║
-║  ┌─────────────────────────────────────────────────────────────────────────┐ ║
-║  │                                                                         │ ║
-║  │  Δ OPERATORS (SHADOW MEMORY):                                           │ ║
-║  │  ════════════════════════════                                           │ ║
-║  │                                                                         │ ║
-║  │      Δ  = F_n - F_{n-2} = F_{n-1}     (position memory)                │ ║
-║  │      Δ' = L_n - L_{n-2}               (velocity memory)                 │ ║
-║  │                                                                         │ ║
-║  │  The delta ENCODES PREVIOUS STATE via subtraction only.                 │ ║
-║  │  No LUT lookup required for shadow access.                              │ ║
-║  │                                                                         │ ║
-║  │  CROSS-PRODUCT:                                                         │ ║
-║  │      Δ × Δ' = phase space area = Cassini invariant                     │ ║
-║  │                                                                         │ ║
-║  └─────────────────────────────────────────────────────────────────────────┘ ║
-║                                                                               ║
-╚═══════════════════════════════════════════════════════════════════════════════╝
-```
-
----
-
-## §8 Complete Data Flow Diagram
-
-```
-╔═══════════════════════════════════════════════════════════════════════════════╗
-║                          COMPLETE DATA FLOW                                   ║
-╠═══════════════════════════════════════════════════════════════════════════════╣
-║                                                                               ║
-║   INPUT TOKENS                                                                ║
-║       │                                                                       ║
-║       ▼                                                                       ║
-║   ┌───────────────────────────────────────────────────────────────────────┐  ║
-║   │  VOCAB LUT: token → frequency_rank (corpus-derived integer)           │  ║
-║   └───────────────────────────────────────────────────────────────────────┘  ║
-║       │                                                                       ║
-║       ▼                                                                       ║
-║   ┌───────────────────────────────────────────────────────────────────────┐  ║
-║   │  ZECK LUT: rank → bits (Zeckendorf encoding, no adjacent 1s)          │  ║
-║   └───────────────────────────────────────────────────────────────────────┘  ║
-║       │                                                                       ║
-║       │    ┌─────────────────────────────────────────────────────────────┐   ║
-║       │    │                                                             │   ║
-║       ▼    ▼                                                             │   ║
-║   ┌─────────────┐                                                        │   ║
-║   │  RAIL       │  pos % 2 == 0 → A_φ (position)                        │   ║
-║   │  SELECTOR   │  pos % 2 == 1 → A_ψ (velocity)                        │   ║
-║   └─────────────┘                                                        │   ║
-║       │                                                                  │   ║
-║       ▼                                                                  │   ║
-║   ┌───────────────────────────────────────────────────────────────────┐ │   ║
-║   │  ACCUMULATOR: target = target | bits  (creates illegal states)   │ │   ║
-║   └───────────────────────────────────────────────────────────────────┘ │   ║
-║       │                                                                  │   ║
-║       ▼                                                                  │   ║
-║   ┌───────────────────────────────────────────────────────────────────┐ │   ║
-║   │                    PRIORITY CASCADE                               │ │   ║
-║   │  ┌─────────────────────────────────────────────────────────────┐ │ │   ║
-║   │  │  WHILE has_adjacent_11(temp):                               │ │ │   ║
-║   │  │      FOR k = MAX down to 1:                                 │ │ │   ║
-║   │  │          IF temp[k] AND temp[k-1]:                          │ │ │   ║
-║   │  │              temp[k,k-1] ← 0                                │ │ │   ║
-║   │  │              temp[k+1] ← 1                                  │ │ │   ║
-║   │  │              τ++                                            │ │ │   ║
-║   │  │              BREAK                                          │ │ │   ║
-║   │  └─────────────────────────────────────────────────────────────┘ │ │   ║
-║   └───────────────────────────────────────────────────────────────────┘ │   ║
-║       │                                                                  │   ║
-║       ▼                                                                  │   ║
-║   ┌───────────────────────────────────────────────────────────────────┐ │   ║
-║   │  VALIDATION: L² - 5F² = ±4                                       │ │   ║
-║   │              (if fails → corruption detected → error recovery)    │ │   ║
-║   └───────────────────────────────────────────────────────────────────┘ │   ║
-║       │                                                                  │   ║
-║       ▼                                                                  │   ║
-║   ┌───────────────────────────────────────────────────────────────────┐ │   ║
-║   │  STATE BUFFER: store (A_φ, A_ψ, τ) for this position             │ │   ║
-║   └───────────────────────────────────────────────────────────────────┘ │   ║
-║       │                                                                  │   ║
-║       ├──────────────────────────────────────────────────────────────────┘   ║
-║       │  (loop for each token)                                               ║
-║       ▼                                                                       ║
-║   ┌───────────────────────────────────────────────────────────────────────┐  ║
-║   │                      ATTENTION COMPUTATION                            │  ║
-║   │  ┌─────────────────────────────────────────────────────────────────┐ │  ║
-║   │  │  FOR all pairs (i,j) where j ≤ i:                              │ │  ║
-║   │  │      d = POPCOUNT[A_φⁱ ⊕ A_φʲ] + POPCOUNT[A_ψⁱ ⊕ A_ψʲ]        │ │  ║
-║   │  │      α[i,j] = ATTEN[d]                                         │ │  ║
-║   │  └─────────────────────────────────────────────────────────────────┘ │  ║
-║   └───────────────────────────────────────────────────────────────────────┘  ║
-║       │                                                                       ║
-║       ▼                                                                       ║
-║   ┌───────────────────────────────────────────────────────────────────────┐  ║
-║   │                      TOKEN GENERATION                                 │  ║
-║   │  ┌─────────────────────────────────────────────────────────────────┐ │  ║
-║   │  │  FOR each candidate token t:                                   │ │  ║
-║   │  │      S' = APPLY_CASCADE(S_current, ZECK[VOCAB[t]])             │ │  ║
-║   │  │      score_t = f(τ(S→S'), Σⱼ α[new_pos,j], freq[t])           │ │  ║
-║   │  │                                                                │ │  ║
-║   │  │  next = argmax_t { score_t }                                   │ │  ║
-║   │  └─────────────────────────────────────────────────────────────────┘ │  ║
-║   └───────────────────────────────────────────────────────────────────────┘  ║
-║       │                                                                       ║
-║       ▼                                                                       ║
-║   OUTPUT TOKEN                                                                ║
-║                                                                               ║
-╚═══════════════════════════════════════════════════════════════════════════════╝
-```
-
----
-
-## §9 Key Mathematical Identities
+## §4 Lucas-Based State Analysis
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        REFERENCE IDENTITIES                                  │
+│                       STATE ANALYSIS FUNCTIONS                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  ┌────────────────────┬─────────────────────────────┬────────────────────┐  │
-│  │     IDENTITY       │         FORMULA             │    HARDWARE USE    │  │
-│  ├────────────────────┼─────────────────────────────┼────────────────────┤  │
-│  │ Golden product     │ φ·ψ = -1                    │ Phase coupling     │  │
-│  │ Binet (F)          │ F_n = (φⁿ-ψⁿ)/√5           │ (derivation only)  │  │
-│  │ Binet (L)          │ L_n = φⁿ+ψⁿ                │ (derivation only)  │  │
-│  │ Power decomp       │ φⁿ = F_n·φ + F_{n-1}       │ Index → integers   │  │
-│  │ Cassini            │ F_{n+1}F_{n-1}-F_n² = (-1)ⁿ│ Parity validation  │  │
-│  │ Phiperbola         │ L_n²-5F_n² = 4(-1)ⁿ        │ Channel sync       │  │
-│  │ Recurrence         │ F_n = F_{n-1}+F_{n-2}      │ Cascade rule       │  │
-│  │ Lucas relation     │ L_n = F_{n+1}+F_{n-1}      │ Boundary check     │  │
-│  │ Product            │ F_n·L_n = F_{2n}           │ Shell doubling     │  │
-│  │ Sum                │ φ+ψ = 1                    │ Normalization      │  │
-│  │ Difference         │ φ-ψ = √5                   │ (derivation only)  │  │
-│  └────────────────────┴─────────────────────────────┴────────────────────┘  │
+│   Given state S = (A_φ, A_ψ, F, L, τ):                                      │
 │                                                                              │
-│  NOTE: √5 appears in derivations but NEVER in runtime computation.          │
-│        All runtime uses integer identities (Phiperbola, Cassini, etc.)      │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│   1. PHASE RATIO                                                             │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                                                              │
+│       ρ = L / F                                                             │
+│                                                                              │
+│       ┌─────────────────────────────────────────────────────────────────┐   │
+│       │   ρ → φ ≈ 1.618   as sequence progresses (asymptotic)          │   │
+│       │   ρ > φ           early in sequence, more constructive interf. │   │
+│       │   ρ = 2/0 = ∞     at origin (L₀=2, F₀=0)                       │   │
+│       └─────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│   2. STANDING WAVE AMPLITUDE                                                 │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                                                              │
+│       Standing wave at shell k:  Lₖ = φᵏ + ψᵏ                              │
+│                                                                              │
+│       Total standing wave:  L_total = Σₖ∈active Lₖ                         │
+│                                                                              │
+│       This measures total constructive interference across all shells.      │
+│                                                                              │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│   3. SHELL ENERGY DISTRIBUTION                                               │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                                                              │
+│       For each active shell k:                                               │
+│                                                                              │
+│           position_contrib[k] = FIB[k] / F_acc                              │
+│           velocity_contrib[k] = LUC[k] / L_acc                              │
+│                                                                              │
+│       High-k shells dominate (exponential growth of F, L)                   │
+│                                                                              │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│   4. MOMENTUM (Deviation from Equilibrium)                                   │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                                                              │
+│       At equilibrium: L = φ·F  (standing wave = φ × position)              │
+│                                                                              │
+│       Momentum:  μ = L - φ·F                                                │
+│                                                                              │
+│       ┌─────────────────────────────────────────────────────────────────┐   │
+│       │   μ > 0   →  excess standing wave (accelerating)               │   │
+│       │   μ = 0   →  equilibrium (coasting)                             │   │
+│       │   μ < 0   →  deficit (decelerating) - rare in forward pass     │   │
+│       └─────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│   5. CASCADE WORK (τ Analysis)                                               │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                                                              │
+│       τ_local: cascades this step                                           │
+│       τ_total = Σ τ_history: cumulative work                                │
+│       τ_rate = τ_total / pos: average work per token                        │
+│                                                                              │
+│       High τ_local indicates:                                                │
+│         • Token created many shell collisions                               │
+│         • Information-dense addition                                         │
+│         • Non-local state reorganization                                     │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## §10 OEIS Cross-Reference
+## §5 Cross-Rail Operations
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          OEIS SEQUENCES                                      │
+│                    CROSS-RAIL LUCAS OPERATIONS                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  ┌──────────┬────────────────────────┬─────────────────────────────────┐    │
-│  │   OEIS   │         NAME           │              ROLE               │    │
-│  ├──────────┼────────────────────────┼─────────────────────────────────┤    │
-│  │  A000045 │ Fibonacci numbers      │ Shell sizes F_k                 │    │
-│  │  A000032 │ Lucas numbers          │ Validation via L² - 5F² = ±4   │    │
-│  │  A014417 │ Zeckendorf rep (bits)  │ Token → bit-vector encoding     │    │
-│  │  A003714 │ Fibbinary numbers      │ Valid states (no adjacent 1s)   │    │
-│  │  A007895 │ Zeckendorf term count  │ Compression ratio / complexity  │    │
-│  │  A000201 │ Lower Wythoff ⌊n·φ⌋   │ Shell boundaries (Beatty seq)   │    │
-│  │  A001950 │ Upper Wythoff ⌊n·φ²⌋  │ Shell boundaries (complement)   │    │
-│  │  A001622 │ Golden ratio digits    │ (constant, not used at runtime) │    │
-│  └──────────┴────────────────────────┴─────────────────────────────────┘    │
+│   The φ and ψ rails interact via Lucas identities:                          │
+│                                                                              │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│   PRODUCT IDENTITY (Shell Doubling)                                          │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                                                              │
+│       Fₙ · Lₙ = F₂ₙ                                                         │
+│                                                                              │
+│       Multiplying position by velocity DOUBLES the shell index.             │
+│       This is a "boost" operation - jump forward 2n shells.                 │
+│                                                                              │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│   SUM IDENTITY (Adjacent Bridging)                                           │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                                                              │
+│       Lₙ = Fₙ₊₁ + Fₙ₋₁                                                      │
+│                                                                              │
+│       Lucas at n equals sum of Fibonacci at n±1.                            │
+│       Velocity "sees" adjacent position shells.                              │
+│                                                                              │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│   DIFFERENCE IDENTITY                                                        │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                                                              │
+│       Lₙ - Fₙ = 2·Fₙ₋₁                                                      │
+│                                                                              │
+│       Difference gives twice the previous position.                          │
+│       Shadow memory via subtraction.                                         │
+│                                                                              │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│   NEGATIVE INDEX EXTENSION                                                   │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                                                              │
+│       F₋ₙ = (-1)ⁿ⁺¹ · Fₙ                                                    │
+│       L₋ₙ = (-1)ⁿ · Lₙ                                                      │
+│                                                                              │
+│       Negative indices = signed versions of positive indices.                │
+│       ψ-rail naturally handles backward traversal.                           │
+│                                                                              │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│   CONVOLUTION (Sequence Combination)                                         │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                                                              │
+│       Fₘ₊ₙ = Fₘ·Fₙ₊₁ + Fₘ₋₁·Fₙ                                              │
+│       Lₘ₊ₙ = (Lₘ·Lₙ + 5·Fₘ·Fₙ) / 2                                          │
+│                                                                              │
+│       Combining two states at indices m and n.                               │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## §11 Summary: The Complete Picture
+## §6 Attention via Shell Distance
+
+```
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                      ATTENTION COMPUTATION                                    ║
+╠═══════════════════════════════════════════════════════════════════════════════╣
+║                                                                               ║
+║  For positions i, j with states Sᵢ, Sⱼ:                                      ║
+║                                                                               ║
+║  ┌─────────────────────────────────────────────────────────────────────────┐ ║
+║  │                                                                         │ ║
+║  │   SHELL DISTANCE:                                                       │ ║
+║  │   ───────────────                                                       │ ║
+║  │                                                                         │ ║
+║  │       d_φ = POPCOUNT[ A_φⁱ ⊕ A_φʲ ]    // Position disagreement        │ ║
+║  │       d_ψ = POPCOUNT[ A_ψⁱ ⊕ A_ψʲ ]    // Velocity disagreement        │ ║
+║  │       d   = d_φ + d_ψ                   // Total shell distance         │ ║
+║  │                                                                         │ ║
+║  └─────────────────────────────────────────────────────────────────────────┘ ║
+║                                                                               ║
+║  ┌─────────────────────────────────────────────────────────────────────────┐ ║
+║  │                                                                         │ ║
+║  │   LUCAS-WEIGHTED ATTENTION:                                             │ ║
+║  │   ─────────────────────────                                             │ ║
+║  │                                                                         │ ║
+║  │       // Shell distance → Lucas decay                                   │ ║
+║  │       weight = LUC[MAX_SHELL - d]   (higher d = lower weight)          │ ║
+║  │                                                                         │ ║
+║  │       // Or equivalently via Fibonacci:                                 │ ║
+║  │       weight = FIB[MAX_SHELL - d + 1] + FIB[MAX_SHELL - d - 1]         │ ║
+║  │                                                                         │ ║
+║  │   INTERPRETATION:                                                       │ ║
+║  │       d = 0:  Perfect shell match → maximum attention (L_max)          │ ║
+║  │       d = 1:  One shell differs → attention = L_{max-1}                │ ║
+║  │       d = k:  k shells differ → attention decays as L_{max-k}          │ ║
+║  │                                                                         │ ║
+║  └─────────────────────────────────────────────────────────────────────────┘ ║
+║                                                                               ║
+║  ┌─────────────────────────────────────────────────────────────────────────┐ ║
+║  │                                                                         │ ║
+║  │   PHASE-AWARE ATTENTION:                                                │ ║
+║  │   ──────────────────────                                                │ ║
+║  │                                                                         │ ║
+║  │       // Include Lucas ratio in attention                               │ ║
+║  │       phase_match = |ρᵢ - ρⱼ|   where ρ = L/F                          │ ║
+║  │                                                                         │ ║
+║  │       α_ij = weight × (1 / (1 + phase_match)) × CAUSAL[i,j]            │ ║
+║  │                                                                         │ ║
+║  │   States with similar L/F ratios attend more strongly.                  │ ║
+║  │   This captures "phase alignment" between positions.                    │ ║
+║  │                                                                         │ ║
+║  └─────────────────────────────────────────────────────────────────────────┘ ║
+║                                                                               ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+## §7 Generation (Next Token Selection)
+
+```
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                        TOKEN GENERATION                                       ║
+╠═══════════════════════════════════════════════════════════════════════════════╣
+║                                                                               ║
+║  Current state: S = (A_φ, A_ψ, F, L, τ_history)                              ║
+║                                                                               ║
+║  ┌─────────────────────────────────────────────────────────────────────────┐ ║
+║  │                                                                         │ ║
+║  │   FOR each candidate token t ∈ vocabulary:                              │ ║
+║  │                                                                         │ ║
+║  │       bits_t = ZECK[VOCAB[t]]                                           │ ║
+║  │                                                                         │ ║
+║  │       // Simulate adding this token                                     │ ║
+║  │       S' = APPLY_CASCADE(S, bits_t)                                     │ ║
+║  │                                                                         │ ║
+║  │       // Extract new state properties                                   │ ║
+║  │       τ_t     = cascade_count(S → S')                                  │ ║
+║  │       F'      = new Fibonacci accumulator                               │ ║
+║  │       L'      = new Lucas accumulator                                   │ ║
+║  │       ρ'      = L' / F'                                                 │ ║
+║  │                                                                         │ ║
+║  │       // Attention to context                                           │ ║
+║  │       attn_t  = Σⱼ α(S', state[j])                                      │ ║
+║  │                                                                         │ ║
+║  │       // SCORE FUNCTION                                                 │ ║
+║  │       score_t = f(τ_t, attn_t, ρ', freq[t])                            │ ║
+║  │                                                                         │ ║
+║  └─────────────────────────────────────────────────────────────────────────┘ ║
+║                                                                               ║
+║  ┌─────────────────────────────────────────────────────────────────────────┐ ║
+║  │                                                                         │ ║
+║  │   SCORING COMPONENTS:                                                   │ ║
+║  │   ───────────────────                                                   │ ║
+║  │                                                                         │ ║
+║  │   1. CASCADE COST (τ_t)                                                 │ ║
+║  │      Lower τ = smoother transition = higher score                       │ ║
+║  │      High τ = significant reorganization = lower score (or bonus?)     │ ║
+║  │                                                                         │ ║
+║  │   2. ATTENTION FIT (attn_t)                                             │ ║
+║  │      Higher attention to context = better fit = higher score            │ ║
+║  │                                                                         │ ║
+║  │   3. PHASE CONTINUITY (ρ')                                              │ ║
+║  │      |ρ' - ρ| small = smooth phase evolution = higher score            │ ║
+║  │      Large jumps in L/F ratio = discontinuity = lower score            │ ║
+║  │                                                                         │ ║
+║  │   4. CORPUS FREQUENCY (freq[t])                                         │ ║
+║  │      Prior probability from training corpus                             │ ║
+║  │                                                                         │ ║
+║  └─────────────────────────────────────────────────────────────────────────┘ ║
+║                                                                               ║
+║  SELECTION:                                                                   ║
+║  ──────────                                                                   ║
+║      next_token = argmax_t { score_t }                                       ║
+║                                                                               ║
+║      // Or temperature sampling:                                              ║
+║      P(t) = exp(score_t / T) / Σ exp(score / T)                              ║
+║                                                                               ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+## §8 State Reconstruction (Reverse Pass)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          ARCHITECTURE SUMMARY                                │
+│                      SEQUENCE RECONSTRUCTION                                 │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  1. TOKENS → Zeckendorf bits via VOCAB + ZECK LUTs                          │
+│   Given final state S_final = (A_φ, A_ψ, F, L) and τ_history:               │
 │                                                                              │
-│  2. BITS ACCUMULATE on alternating φ/ψ rails (Verlet structure)             │
-│     • Even positions → φ-rail (position channel)                            │
-│     • Odd positions  → ψ-rail (velocity channel)                            │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│   INVERSE CASCADE                                                            │
+│   ═══════════════════════════════════════════════════════════════════════   │
 │                                                                              │
-│  3. CASCADES NORMALIZE via priority rule (high shells first)                │
-│     • F_k + F_{k-1} = F_{k+1}                                               │
-│     • τ counts cross-rail events (computational work)                       │
+│   Forward cascade:   Fₖ + Fₖ₋₁ → Fₖ₊₁   (two shells → one shell)          │
+│   Inverse cascade:   Fₖ₊₁ → Fₖ + Fₖ₋₁   (one shell → two shells)          │
 │                                                                              │
-│  4. ATTENTION = XOR + POPCOUNT                                              │
-│     • ~3 ns per position pair                                               │
-│     • 333M attention weights per second                                      │
+│   τ_history tells us exactly how many inverse cascades to apply             │
+│   at each step, working backwards.                                           │
 │                                                                              │
-│  5. VALIDATION = integer identity L² - 5F² = ±4                             │
-│     • No √5 at runtime                                                      │
-│     • Exact corruption detection                                             │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│   LUCAS-GUIDED RECONSTRUCTION                                                │
+│   ═══════════════════════════════════════════════════════════════════════   │
 │                                                                              │
-│  6. GENERATION = DAG traversal over valid state space                       │
-│     • Deterministic (bit-exact reproducible)                                │
-│     • Reversible (τ_history enables reconstruction)                         │
+│   At each reverse step:                                                      │
 │                                                                              │
-│  ═══════════════════════════════════════════════════════════════════════    │
+│   1. Current (F, L) known                                                   │
+│   2. Apply τ[pos] inverse cascades to get pre-cascade state                 │
+│   3. Use Verlet alternation to know which rail was modified                 │
+│   4. Extract token bits from rail difference                                 │
+│   5. Look up token from UNZECK[bits]                                        │
 │                                                                              │
-│  NO FLOATING POINT.  NO APPROXIMATION.  INTEGER ARITHMETIC ONLY.            │
+│   The Lucas channel provides redundancy:                                     │
+│       Expected: Lₙ = Fₙ₊₁ + Fₙ₋₁                                            │
+│       If mismatch: reconstruction error detected                             │
+│                                                                              │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│   SHADOW MEMORY (Δ Operators)                                                │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                                                              │
+│       Δ_F = Fₙ - Fₙ₋₂ = Fₙ₋₁      (position shadow)                        │
+│       Δ_L = Lₙ - Lₙ₋₂             (velocity shadow)                         │
+│                                                                              │
+│   Shadow memory encodes previous state via subtraction only.                 │
+│   No additional storage needed - it's implicit in (F, L).                   │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## §9 Complete Data Flow
+
+```
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                          DATA FLOW SUMMARY                                    ║
+╠═══════════════════════════════════════════════════════════════════════════════╣
+║                                                                               ║
+║                           INPUT TOKENS                                        ║
+║                               │                                               ║
+║                               ▼                                               ║
+║                     ┌─────────────────┐                                      ║
+║                     │  VOCAB → rank   │                                      ║
+║                     └────────┬────────┘                                      ║
+║                              │                                               ║
+║                              ▼                                               ║
+║                     ┌─────────────────┐                                      ║
+║                     │  ZECK → bits    │                                      ║
+║                     └────────┬────────┘                                      ║
+║                              │                                               ║
+║              ┌───────────────┴───────────────┐                               ║
+║              ▼                               ▼                               ║
+║      ┌───────────────┐               ┌───────────────┐                       ║
+║      │    φ-RAIL     │               │    ψ-RAIL     │                       ║
+║      │  (Position)   │               │  (Velocity)   │                       ║
+║      │               │               │               │                       ║
+║      │   A_φ bits    │               │   A_ψ bits    │                       ║
+║      │   F_contrib   │               │   L_contrib   │                       ║
+║      └───────┬───────┘               └───────┬───────┘                       ║
+║              │                               │                               ║
+║              └───────────────┬───────────────┘                               ║
+║                              │                                               ║
+║                              ▼                                               ║
+║                     ┌─────────────────┐                                      ║
+║                     │    CASCADE      │                                      ║
+║                     │  NORMALIZATION  │                                      ║
+║                     │    (τ count)    │                                      ║
+║                     └────────┬────────┘                                      ║
+║                              │                                               ║
+║                              ▼                                               ║
+║                     ┌─────────────────┐                                      ║
+║                     │  LUCAS STATE    │                                      ║
+║                     │   COMPUTATION   │                                      ║
+║                     │                 │                                      ║
+║                     │  F_acc = Σ Fₖ   │                                      ║
+║                     │  L_acc = Σ Lₖ   │                                      ║
+║                     │  ρ = L/F        │                                      ║
+║                     └────────┬────────┘                                      ║
+║                              │                                               ║
+║              ┌───────────────┴───────────────┐                               ║
+║              ▼                               ▼                               ║
+║      ┌───────────────┐               ┌───────────────┐                       ║
+║      │   ATTENTION   │               │  GENERATION   │                       ║
+║      │               │               │               │                       ║
+║      │  XOR+POPCOUNT │               │  Score each   │                       ║
+║      │  Lucas weight │               │  candidate    │                       ║
+║      │  Phase match  │               │  via (τ,α,ρ)  │                       ║
+║      └───────────────┘               └───────┬───────┘                       ║
+║                                              │                               ║
+║                                              ▼                               ║
+║                                      OUTPUT TOKEN                            ║
+║                                                                               ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+## §10 Key Identities Reference
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    FIBONACCI-LUCAS IDENTITIES                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────────────────┬────────────────────────────────────────────┐   │
+│  │       Identity          │              Use Case                      │   │
+│  ├─────────────────────────┼────────────────────────────────────────────┤   │
+│  │  Lₙ = Fₙ₊₁ + Fₙ₋₁       │  Lucas from adjacent Fibonacci            │   │
+│  │  Lₙ = 2Fₙ₊₁ - Fₙ        │  Alternative Lucas computation            │   │
+│  │  Fₙ · Lₙ = F₂ₙ          │  Shell doubling (boost operation)         │   │
+│  │  Lₙ² = 5Fₙ² + 4(-1)ⁿ    │  Structural identity (no runtime check)  │   │
+│  │  Fₘ₊ₙ = Fₘ·Fₙ₊₁+Fₘ₋₁·Fₙ │  Combining indices (convolution)         │   │
+│  │  Lₘ₊ₙ = ½(Lₘ·Lₙ+5Fₘ·Fₙ) │  Lucas convolution                        │   │
+│  │  L₂ₙ = Lₙ² - 2(-1)ⁿ     │  Lucas doubling                           │   │
+│  │  F₂ₙ = Fₙ · Lₙ          │  Fibonacci doubling                       │   │
+│  │  Lₙ - Fₙ = 2Fₙ₋₁        │  Shadow memory access                     │   │
+│  │  Lₙ + Fₙ = 2Fₙ₊₁        │  Forward prediction                       │   │
+│  │  F₋ₙ = (-1)ⁿ⁺¹ Fₙ       │  Negative index (ψ-rail)                  │   │
+│  │  L₋ₙ = (-1)ⁿ Lₙ         │  Negative Lucas                           │   │
+│  └─────────────────────────┴────────────────────────────────────────────┘   │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## §11 Summary
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         ARCHITECTURE SUMMARY                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   STATE = (A_φ, A_ψ, F, L, τ)                                               │
+│                                                                              │
+│       A_φ : Zeckendorf bits on position rail                                │
+│       A_ψ : Zeckendorf bits on velocity rail                                │
+│       F   : Accumulated Fibonacci (position)                                │
+│       L   : Accumulated Lucas (velocity / standing wave)                    │
+│       τ   : Cascade history (work performed)                                │
+│                                                                              │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                                                              │
+│   CORE OPERATIONS:                                                           │
+│                                                                              │
+│       1. TOKEN → Zeckendorf bits via LUT                                    │
+│       2. Bits accumulate on alternating φ/ψ rails (Verlet)                  │
+│       3. Priority cascade normalizes illegal states                          │
+│       4. Lucas state (L) tracks standing wave amplitude                     │
+│       5. Attention via XOR + POPCOUNT on shell bits                         │
+│       6. Generation scores candidates by (τ, attention, L/F ratio)          │
+│                                                                              │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                                                              │
+│   LUCAS PROVIDES:                                                            │
+│                                                                              │
+│       • Velocity channel complementing Fibonacci position                   │
+│       • Standing wave amplitude: Lₙ = φⁿ + ψⁿ                               │
+│       • Phase state indicator: ρ = L/F → φ asymptotically                  │
+│       • Shadow memory: Lₙ - Fₙ = 2Fₙ₋₁                                      │
+│       • Shell doubling: Fₙ · Lₙ = F₂ₙ                                       │
+│       • Reconstruction redundancy via Lₙ = Fₙ₊₁ + Fₙ₋₁                      │
+│                                                                              │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                                                              │
+│   ALL INTEGER ARITHMETIC.  NO FLOATING POINT.  DETERMINISTIC.               │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
