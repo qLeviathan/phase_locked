@@ -139,3 +139,6 @@ tests/zisa/cache/
 tests/zisa/test_data.bin
 rtl/obj_dir/
 *.vcd
+
+# External cloned repos
+icestorm/
