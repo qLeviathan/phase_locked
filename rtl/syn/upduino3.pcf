@@ -1,0 +1,52 @@
+# ============================================================================
+# UPDUINO 3.1 PIN CONSTRAINTS FILE
+# ============================================================================
+# Deterministic AI Apparatus - Patent Pending
+# Target: Lattice iCE40 UP5K (UPduino 3.1)
+# ============================================================================
+
+# Clock (directly accessible to internal oscillator, no external pin)
+# The iCE40 UP5K uses SB_HFOSC for internal 48MHz clock
+
+# UART (directly accessible via FTDI on UPduino 3.1)
+set_io uart_tx      14    # Pin 14 on UPduino = FPGA TX -> FTDI RX
+set_io uart_rx      15    # Pin 15 on UPduino = FPGA RX <- FTDI TX
+
+# RGB LED (directly accessible, active low, directly on die)
+set_io led_red_n    41    # RGB LED Red (directly accessible to RGB_DRV)
+set_io led_green_n  40    # RGB LED Green
+set_io led_blue_n   39    # RGB LED Blue
+
+# SPI Flash (directly accessible)
+set_io spi_cs_n     16    # Flash chip select
+set_io spi_sck      15    # Flash clock (shared with UART RX on some boards)
+set_io spi_mosi     14    # Flash MOSI (shared with UART TX on some boards)
+set_io spi_miso     17    # Flash MISO
+
+# GPIO (directly accessible on UPduino 3.1 headers)
+set_io gpio[0]      2
+set_io gpio[1]      3
+set_io gpio[2]      4
+set_io gpio[3]      44
+set_io gpio[4]      45
+set_io gpio[5]      46
+set_io gpio[6]      47
+set_io gpio[7]      48
+
+# ============================================================================
+# TIMING CONSTRAINTS
+# ============================================================================
+# 48MHz clock = 20.83ns period
+# Note: Timing constraints are specified in synthesis scripts
+
+# ============================================================================
+# NOTES
+# ============================================================================
+# UPduino 3.1 uses the Lattice iCE40 UP5K-SG48 package
+# - 48 pins total
+# - 5280 LUTs
+# - 1Mb SPRAM (4 x 256Kbit)
+# - 120Kb DPRAM
+# - 8 DSP blocks (not used in this design)
+# - Internal 48MHz oscillator (SB_HFOSC)
+# - Internal RGB LED driver (SB_RGBA_DRV)
